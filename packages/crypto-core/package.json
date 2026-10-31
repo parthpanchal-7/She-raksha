@@ -13,10 +13,15 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/tests/*.test.js || echo 'No tests yet'",
+    "test": "node --test dist/tests/crypto.test.js",
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@she-raksha/schemas": "workspace:*",
+    "tweetnacl": "^1.0.3"
   }
 }
