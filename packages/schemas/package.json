@@ -13,13 +13,16 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/tests/*.test.js || echo 'No tests yet'",
-    "lint": "tsc --noEmit"
+    "test": "node --test dist/tests/schemas.test.js",
+    "test:src": "node --experimental-strip-types --test src/tests/schemas.test.ts",
+    "lint": "tsc --noEmit",
+    "db:migrate": "node dist/migrations/runner.js"
   },
   "dependencies": {
-    "@she-raksha/design-tokens": "workspace:*"
+    "zod": "3.23.8"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "typescript": "^5.4.5"
   }
 }
