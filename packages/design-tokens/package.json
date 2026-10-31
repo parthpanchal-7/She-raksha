@@ -1,0 +1,43 @@
+{
+  "name": "@she-raksha/design-tokens",
+  "version": "1.0.0",
+  "description": "Canonical 10-token Brand Design System, Tailwind preset, and React Native theme for She-Raksha",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./tailwind": {
+      "types": "./dist/tailwindPreset.d.ts",
+      "import": "./dist/tailwindPreset.js",
+      "require": "./dist/tailwindPreset.js"
+    },
+    "./react-native": {
+      "types": "./dist/reactNativeTheme.d.ts",
+      "import": "./dist/reactNativeTheme.js",
+      "require": "./dist/reactNativeTheme.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test tests/tokens.test.mjs",
+    "lint": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "she-raksha",
+    "design-tokens",
+    "tailwind",
+    "react-native",
+    "safety"
+  ],
+  "author": "She-Raksha Autonomous Engineering Team",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

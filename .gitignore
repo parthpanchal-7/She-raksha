@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs & caches
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Hardhat & Smart Contracts
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# Circom & ZK Artifacts
+*.r1cs
+*.zkey
+*.wtns
+*.sym
+ptau/
+build_circuits/
+
+# Mobile (Expo / React Native)
+.expo/
+android/app/build/
+ios/build/
+*.apk
+*.aab
+*.ipa
+
+# Logs & Environment
+*.log
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# OS metadata
+.DS_Store
+Thumbs.db

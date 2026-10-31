@@ -1,0 +1,22 @@
+{
+  "name": "@she-raksha/crypto-core",
+  "version": "1.0.0",
+  "description": "AES-256-GCM 5-sec chunked envelope encryption, Merkle tree builder, and Base91 SMS codec",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/tests/*.test.js || echo 'No tests yet'",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

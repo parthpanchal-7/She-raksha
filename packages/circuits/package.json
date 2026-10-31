@@ -1,0 +1,23 @@
+{
+  "name": "@she-raksha/circuits",
+  "version": "1.0.0",
+  "description": "Circom 2.1 & SnarkJS Groth16 Zero-Knowledge Anonymous Bystander Reporting Circuits",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:circuit": "echo 'Circuit build stub'",
+    "test": "echo 'Circuits test stub'",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

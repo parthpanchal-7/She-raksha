@@ -1,0 +1,23 @@
+{
+  "name": "@she-raksha/contracts",
+  "version": "1.0.0",
+  "description": "Polygon L2 Smart Contracts (EvidenceRegistry, ZKReportVerifier, ComplaintEscrow, SOSLog, Paymaster)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "compile": "echo 'Hardhat compile stub'",
+    "test": "echo 'Contracts test stub'",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@she-raksha/backend",
+  "version": "1.0.0",
+  "description": "Fastify Multi-Rail SOS Hub, PostGIS Guardian Matcher, BNSS §173 Timer Worker & BSA §63 Compiler",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "echo 'Backend test stub'",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@she-raksha/contracts": "workspace:*",
+    "@she-raksha/crypto-core": "workspace:*",
+    "@she-raksha/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

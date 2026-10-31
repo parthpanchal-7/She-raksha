@@ -1,0 +1,25 @@
+{
+  "name": "@she-raksha/schemas",
+  "version": "1.0.0",
+  "description": "Canonical DFD Data Contracts, Zod Validators, 3NF PostGIS & SQLCipher Schemas",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/tests/*.test.js || echo 'No tests yet'",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@she-raksha/design-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "she-raksha-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "She-Raksha (शी-रक्षा) — Decentralized, Offline-First Women's Safety, Multi-Rail SOS Dispatch & Legal Platform",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "turbo": "^2.11.10",
+    "typescript": "^5.4.5"
+  },
+  "packageManager": "pnpm@12.16.1"
+}

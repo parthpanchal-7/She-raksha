@@ -1,0 +1,29 @@
+{
+  "name": "@she-raksha/web",
+  "version": "1.0.0",
+  "description": "Next.js 14 Discreet Survivor PWA, WASM ZK Bystander Prover & Police/NGO Casework Dashboard",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "echo 'Web test stub'",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@she-raksha/circuits": "workspace:*",
+    "@she-raksha/crypto-core": "workspace:*",
+    "@she-raksha/design-tokens": "workspace:*",
+    "@she-raksha/schemas": "workspace:*",
+    "@she-raksha/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

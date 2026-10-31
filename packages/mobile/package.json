@@ -1,0 +1,28 @@
+{
+  "name": "@she-raksha/mobile",
+  "version": "1.0.0",
+  "description": "React Native Mobile App with Hardware Triggers, TFLite Voice Classifier, 5s Vault & Offline Sync",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "echo 'Mobile test stub'",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@she-raksha/crypto-core": "workspace:*",
+    "@she-raksha/design-tokens": "workspace:*",
+    "@she-raksha/schemas": "workspace:*",
+    "@she-raksha/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
