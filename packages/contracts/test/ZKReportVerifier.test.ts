@@ -105,11 +105,16 @@ describe("ZKReportVerifier (Groth16 Zero-Knowledge Bystander Verification)", () 
     });
   });
 
-  describe("submitAnonymousReport", () => {
+  describe("submitAnonymousReport (4 Public Inputs Compatibility)", () => {
     it("Should successfully verify and record a valid anonymous bystander proof", async () => {
       const tx = await zkReportVerifier
         .connect(bystander)
-        .submitAnonymousReport(validProofA, validProofB, validProofC, validPublicInputs);
+        ["submitAnonymousReport(uint256[2],uint256[2][2],uint256[2],uint256[4])"](
+          validProofA,
+          validProofB,
+          validProofC,
+          validPublicInputs
+        );
 
       const nullifierBytes32 = ethers.zeroPadValue(ethers.toBeHex(nullifierHash), 32);
       const geohashBytes32 = ethers.zeroPadValue(ethers.toBeHex(geohashBucket), 32);
@@ -126,14 +131,24 @@ describe("ZKReportVerifier (Groth16 Zero-Knowledge Bystander Verification)", () 
       // First submission
       await zkReportVerifier
         .connect(bystander)
-        .submitAnonymousReport(validProofA, validProofB, validProofC, validPublicInputs);
+        ["submitAnonymousReport(uint256[2],uint256[2][2],uint256[2],uint256[4])"](
+          validProofA,
+          validProofB,
+          validProofC,
+          validPublicInputs
+        );
 
       // Replay with identical nullifier
       const nullifierBytes32 = ethers.zeroPadValue(ethers.toBeHex(nullifierHash), 32);
       await expect(
         zkReportVerifier
           .connect(bystander)
-          .submitAnonymousReport(validProofA, validProofB, validProofC, validPublicInputs)
+          ["submitAnonymousReport(uint256[2],uint256[2][2],uint256[2],uint256[4])"](
+            validProofA,
+            validProofB,
+            validProofC,
+            validPublicInputs
+          )
       )
         .to.be.revertedWithCustomError(zkReportVerifier, "DuplicateNullifier")
         .withArgs(nullifierBytes32);
@@ -152,7 +167,12 @@ describe("ZKReportVerifier (Groth16 Zero-Knowledge Bystander Verification)", () 
       await expect(
         zkReportVerifier
           .connect(bystander)
-          .submitAnonymousReport(validProofA, validProofB, validProofC, freshInputs)
+          ["submitAnonymousReport(uint256[2],uint256[2][2],uint256[2],uint256[4])"](
+            validProofA,
+            validProofB,
+            validProofC,
+            freshInputs
+          )
       ).to.be.revertedWithCustomError(zkReportVerifier, "InvalidProof");
     });
 
@@ -163,7 +183,12 @@ describe("ZKReportVerifier (Groth16 Zero-Knowledge Bystander Verification)", () 
       await expect(
         unconfigured
           .connect(bystander)
-          .submitAnonymousReport(validProofA, validProofB, validProofC, validPublicInputs)
+          ["submitAnonymousReport(uint256[2],uint256[2][2],uint256[2],uint256[4])"](
+            validProofA,
+            validProofB,
+            validProofC,
+            validPublicInputs
+          )
       ).to.be.revertedWithCustomError(unconfigured, "VerifierNotConfigured");
     });
 
@@ -173,8 +198,248 @@ describe("ZKReportVerifier (Groth16 Zero-Knowledge Bystander Verification)", () 
       await expect(
         zkReportVerifier
           .connect(bystander)
-          .submitAnonymousReport(validProofA, validProofB, validProofC, validPublicInputs)
+          ["submitAnonymousReport(uint256[2],uint256[2][2],uint256[2],uint256[4])"](
+            validProofA,
+            validProofB,
+            validProofC,
+            validPublicInputs
+          )
       ).to.be.revertedWithCustomError(zkReportVerifier, "EnforcedPause");
+    });
+  });
+
+  describe("submitAnonymousReport & submitAnonymousReportV2 (6 Public Inputs Circom v2)", () => {
+    const merkleRoot = 888777666555n;
+    const incidentId = 42n;
+    const validPublicInputs6: [bigint, bigint, bigint, bigint, bigint, bigint] = [
+      nullifierHash + 100n,
+      geohashBucket,
+      categoryCode,
+      timestampBucket,
+      merkleRoot,
+      incidentId,
+    ];
+
+    it("Should verify and record a valid report using overloaded 6-input submitAnonymousReport", async () => {
+      const tx = await zkReportVerifier
+        .connect(bystander)
+        ["submitAnonymousReport(uint256[2],uint256[2][2],uint256[2],uint256[6])"](
+          validProofA,
+          validProofB,
+          validProofC,
+          validPublicInputs6
+        );
+
+      const nullifierBytes32 = ethers.zeroPadValue(ethers.toBeHex(nullifierHash + 100n), 32);
+      const geohashBytes32 = ethers.zeroPadValue(ethers.toBeHex(geohashBucket), 32);
+
+      await expect(tx)
+        .to.emit(zkReportVerifier, "AnonymousReportLogged")
+        .withArgs(nullifierBytes32, geohashBytes32, timestampBucket);
+
+      expect(await zkReportVerifier.isNullifierSpent(nullifierBytes32)).to.be.true;
+    });
+
+    it("Should verify and record a valid report using submitAnonymousReportV2", async () => {
+      const freshNullifier = nullifierHash + 200n;
+      const inputs: [bigint, bigint, bigint, bigint, bigint, bigint] = [
+        freshNullifier,
+        geohashBucket,
+        categoryCode,
+        timestampBucket,
+        merkleRoot,
+        incidentId,
+      ];
+
+      const tx = await zkReportVerifier
+        .connect(bystander)
+        .submitAnonymousReportV2(validProofA, validProofB, validProofC, inputs);
+
+      const nullifierBytes32 = ethers.zeroPadValue(ethers.toBeHex(freshNullifier), 32);
+      const geohashBytes32 = ethers.zeroPadValue(ethers.toBeHex(geohashBucket), 32);
+
+      await expect(tx)
+        .to.emit(zkReportVerifier, "AnonymousReportLogged")
+        .withArgs(nullifierBytes32, geohashBytes32, timestampBucket);
+
+      expect(await zkReportVerifier.isNullifierSpent(nullifierBytes32)).to.be.true;
+    });
+
+    it("Should revert with DuplicateNullifier if 6-input report nullifier is reused", async () => {
+      const freshNullifier = nullifierHash + 300n;
+      const inputs: [bigint, bigint, bigint, bigint, bigint, bigint] = [
+        freshNullifier,
+        geohashBucket,
+        categoryCode,
+        timestampBucket,
+        merkleRoot,
+        incidentId,
+      ];
+
+      await zkReportVerifier
+        .connect(bystander)
+        .submitAnonymousReportV2(validProofA, validProofB, validProofC, inputs);
+
+      const nullifierBytes32 = ethers.zeroPadValue(ethers.toBeHex(freshNullifier), 32);
+      await expect(
+        zkReportVerifier
+          .connect(bystander)
+          .submitAnonymousReportV2(validProofA, validProofB, validProofC, inputs)
+      )
+        .to.be.revertedWithCustomError(zkReportVerifier, "DuplicateNullifier")
+        .withArgs(nullifierBytes32);
+    });
+
+    it("Should revert with InvalidProof if 6-input Groth16 verification fails", async () => {
+      await mockVerifier.setShouldPass(false);
+
+      const inputs: [bigint, bigint, bigint, bigint, bigint, bigint] = [
+        nullifierHash + 400n,
+        geohashBucket,
+        categoryCode,
+        timestampBucket,
+        merkleRoot,
+        incidentId,
+      ];
+
+      await expect(
+        zkReportVerifier
+          .connect(bystander)
+          .submitAnonymousReportV2(validProofA, validProofB, validProofC, inputs)
+      ).to.be.revertedWithCustomError(zkReportVerifier, "InvalidProof");
+    });
+
+    it("Should revert with VerifierNotConfigured if 6-input report runs without verifier", async () => {
+      const Factory = await ethers.getContractFactory("ZKReportVerifier");
+      const unconfigured = await Factory.deploy(owner.address, ethers.ZeroAddress);
+
+      const inputs: [bigint, bigint, bigint, bigint, bigint, bigint] = [
+        nullifierHash + 500n,
+        geohashBucket,
+        categoryCode,
+        timestampBucket,
+        merkleRoot,
+        incidentId,
+      ];
+
+      await expect(
+        unconfigured
+          .connect(bystander)
+          .submitAnonymousReportV2(validProofA, validProofB, validProofC, inputs)
+      ).to.be.revertedWithCustomError(unconfigured, "VerifierNotConfigured");
+    });
+
+    it("Should revert 6-input submission when paused", async () => {
+      await zkReportVerifier.connect(owner).pause();
+
+      const inputs: [bigint, bigint, bigint, bigint, bigint, bigint] = [
+        nullifierHash + 600n,
+        geohashBucket,
+        categoryCode,
+        timestampBucket,
+        merkleRoot,
+        incidentId,
+      ];
+
+      await expect(
+        zkReportVerifier
+          .connect(bystander)
+          .submitAnonymousReportV2(validProofA, validProofB, validProofC, inputs)
+      ).to.be.revertedWithCustomError(zkReportVerifier, "EnforcedPause");
+    });
+  });
+
+  describe("End-to-End On-Chain Verification with Real Groth16Verifier.sol", () => {
+    let realVerifier: any;
+    let realZkReportVerifier: ZKReportVerifier;
+    let realFixture: any;
+
+    beforeEach(async () => {
+      realFixture = require("./fixtures/realProofFixture.json");
+
+      const Groth16VerifierFactory = await ethers.getContractFactory("Groth16Verifier");
+      realVerifier = await Groth16VerifierFactory.deploy();
+      await realVerifier.waitForDeployment();
+
+      const VerifierFactory = await ethers.getContractFactory("ZKReportVerifier");
+      realZkReportVerifier = await VerifierFactory.deploy(
+        owner.address,
+        await realVerifier.getAddress()
+      );
+      await realZkReportVerifier.waitForDeployment();
+    });
+
+    it("Should verify real Groth16 zk-SNARK proof on-chain with Groth16Verifier.sol", async () => {
+      const a = realFixture.calldata.a as [string, string];
+      const b = realFixture.calldata.b as [[string, string], [string, string]];
+      const c = realFixture.calldata.c as [string, string];
+      const input = realFixture.calldata.input as [
+        string,
+        string,
+        string,
+        string,
+        string,
+        string
+      ];
+
+      const tx = await realZkReportVerifier
+        .connect(bystander)
+        .submitAnonymousReportV2(a, b, c, input);
+
+      const nullifierBytes32 = input[0];
+      const geohashBytes32 = input[1];
+      const timestampBucket = BigInt(input[3]);
+
+      await expect(tx)
+        .to.emit(realZkReportVerifier, "AnonymousReportLogged")
+        .withArgs(nullifierBytes32, geohashBytes32, timestampBucket);
+
+      expect(await realZkReportVerifier.isNullifierSpent(nullifierBytes32)).to.be.true;
+      expect(await realZkReportVerifier.totalReportsLogged()).to.equal(1n);
+    });
+
+    it("Should reject replay of identical (identitySecret, incidentId) on-chain with DuplicateNullifier", async () => {
+      const a = realFixture.calldata.a as [string, string];
+      const b = realFixture.calldata.b as [[string, string], [string, string]];
+      const c = realFixture.calldata.c as [string, string];
+      const input = realFixture.calldata.input as [
+        string,
+        string,
+        string,
+        string,
+        string,
+        string
+      ];
+
+      // First submission passes
+      await realZkReportVerifier.connect(bystander).submitAnonymousReportV2(a, b, c, input);
+
+      // Second submission with same nullifier reverts
+      await expect(
+        realZkReportVerifier.connect(bystander).submitAnonymousReportV2(a, b, c, input)
+      )
+        .to.be.revertedWithCustomError(realZkReportVerifier, "DuplicateNullifier")
+        .withArgs(input[0]);
+    });
+
+    it("Should revert with InvalidProof on tampered public input or proof in real verifier", async () => {
+      const a = realFixture.calldata.a as [string, string];
+      const b = realFixture.calldata.b as [[string, string], [string, string]];
+      const c = realFixture.calldata.c as [string, string];
+      const tamperedInput = [...realFixture.calldata.input] as [
+        string,
+        string,
+        string,
+        string,
+        string,
+        string
+      ];
+      // Tamper geohash bucket
+      tamperedInput[1] = "0x0000000000000000000000000000000000000000000000000000000000009999";
+
+      await expect(
+        realZkReportVerifier.connect(bystander).submitAnonymousReportV2(a, b, c, tamperedInput)
+      ).to.be.revertedWithCustomError(realZkReportVerifier, "InvalidProof");
     });
   });
 });

@@ -12,4 +12,11 @@ interface IGroth16Verifier {
         uint[2] calldata c,
         uint[4] calldata input
     ) external view returns (bool r);
+
+    function verifyProof(
+        uint[2] calldata a,
+        uint[2][2] calldata b,
+        uint[2] calldata c,
+        uint[6] calldata input
+    ) external view returns (bool r);
 }

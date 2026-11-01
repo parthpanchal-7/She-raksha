@@ -13,11 +13,16 @@
   },
   "scripts": {
     "build": "tsc",
-    "build:circuit": "echo 'Circuit build stub'",
-    "test": "echo 'Circuits test stub'",
+    "build:circuit": "node scripts/build_circuits.mjs",
+    "test": "node --test test/circuit.test.mjs",
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.6"
   }
 }

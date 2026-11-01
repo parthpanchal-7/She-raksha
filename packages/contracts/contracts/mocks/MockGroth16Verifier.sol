@@ -22,4 +22,13 @@ contract MockGroth16Verifier is IGroth16Verifier {
     ) external view override returns (bool) {
         return shouldPass;
     }
+
+    function verifyProof(
+        uint[2] calldata,
+        uint[2][2] calldata,
+        uint[2] calldata,
+        uint[6] calldata
+    ) external view override returns (bool) {
+        return shouldPass;
+    }
 }
