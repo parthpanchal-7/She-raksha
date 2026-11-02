@@ -151,3 +151,4 @@ describe('Safe-Journey Dead-Man Check-In Monitor (FR-SOS-004)', () => {
     assert.equal(results.length, 0, 'Completed journey should not trigger actions');
   });
 });
+

@@ -16,13 +16,23 @@ import {
   GuardianRecord,
   EmergencyContactRecord,
 } from '../types.js';
-import { DispatchRail, DispatchStatus, SOSStatus, TriggerMode } from '@she-raksha/schemas';
+import {
+  DispatchRail,
+  DispatchStatus,
+  SOSStatus,
+  TriggerMode,
+  EFIRRecord,
+  EFIRStatus,
+  BSA63CertificatePack,
+} from '@she-raksha/schemas';
 
 export class MemoryStore {
   public incidents: Map<string, SOSIncidentRecord> = new Map();
   public dispatchLogs: SOSDispatchLogRecord[] = [];
   public guardians: Map<string, GuardianRecord> = new Map();
   public emergencyContacts: Map<string, EmergencyContactRecord[]> = new Map(); // userId -> contacts
+  public efirRecords: Map<string, EFIRRecord> = new Map();
+  public bsa63Certificates: Map<string, BSA63CertificatePack> = new Map();
 
   constructor() {
     this.seedDefaultData();
@@ -36,6 +46,8 @@ export class MemoryStore {
     this.dispatchLogs = [];
     this.guardians.clear();
     this.emergencyContacts.clear();
+    this.efirRecords.clear();
+    this.bsa63Certificates.clear();
     this.seedDefaultData();
   }
 
@@ -106,6 +118,61 @@ export class MemoryStore {
 
   public async getEmergencyContacts(userId: string): Promise<EmergencyContactRecord[]> {
     return this.emergencyContacts.get(userId) || [];
+  }
+
+  // -------------------------------------------------------------------------
+  // eFIR Records (BNSS §173)
+  // -------------------------------------------------------------------------
+
+  public async saveEFIRRecord(efir: EFIRRecord): Promise<EFIRRecord> {
+    this.efirRecords.set(efir.efirId, efir);
+    return efir;
+  }
+
+  public async getEFIRRecord(efirId: string): Promise<EFIRRecord | undefined> {
+    return this.efirRecords.get(efirId);
+  }
+
+  public async getEFIRByIncidentId(incidentId: string): Promise<EFIRRecord | undefined> {
+    return Array.from(this.efirRecords.values()).find((e) => e.incidentId === incidentId);
+  }
+
+  public async getAllActiveEFIRRecords(): Promise<EFIRRecord[]> {
+    return Array.from(this.efirRecords.values()).filter(
+      (e) => e.status === EFIRStatus.PENDING_SIGN || e.status === EFIRStatus.SIGNED
+    );
+  }
+
+  public async updateEFIRStatus(
+    efirId: string,
+    status: EFIRStatus,
+    details: Partial<EFIRRecord> = {}
+  ): Promise<boolean> {
+    const existing = this.efirRecords.get(efirId);
+    if (!existing) return false;
+    this.efirRecords.set(efirId, {
+      ...existing,
+      ...details,
+      status,
+    });
+    return true;
+  }
+
+  // -------------------------------------------------------------------------
+  // BSA §63 Digital Evidence Certificates
+  // -------------------------------------------------------------------------
+
+  public async saveBSA63Certificate(cert: BSA63CertificatePack): Promise<BSA63CertificatePack> {
+    this.bsa63Certificates.set(cert.certId, cert);
+    return cert;
+  }
+
+  public async getBSA63Certificate(certId: string): Promise<BSA63CertificatePack | undefined> {
+    return this.bsa63Certificates.get(certId);
+  }
+
+  public async getBSA63CertificateByIncidentId(incidentId: string): Promise<BSA63CertificatePack | undefined> {
+    return Array.from(this.bsa63Certificates.values()).find((c) => c.incidentId === incidentId);
   }
 
   // -------------------------------------------------------------------------
@@ -204,3 +271,4 @@ export class MemoryStore {
 }
 
 export const defaultStore = new MemoryStore();
+

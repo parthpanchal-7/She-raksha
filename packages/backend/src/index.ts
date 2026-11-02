@@ -13,4 +13,7 @@ export * from './relays/erss112Relay.js';
 export * from './relays/smsRelay.js';
 export * from './monitor/deadManMonitor.js';
 export * from './sos/sosHub.js';
+export * from './legal/bnsClassifier.js';
+export * from './legal/bnssCountdownWorker.js';
+export * from './legal/bsa63Compiler.js';
 export * from './server.js';

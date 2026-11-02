@@ -128,3 +128,4 @@ describe('Spatial Engine & Guardian Matcher (FR-SOS-003)', () => {
     assert.deepEqual(params, [centerLng, centerLat, 800]);
   });
 });
+

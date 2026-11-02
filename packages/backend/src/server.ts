@@ -19,6 +19,9 @@ import { defaultSOSHub, SOSHub } from './sos/sosHub.js';
 import { defaultSMSRelay, SMSRelay, TwilioWebhookBody } from './relays/smsRelay.js';
 import { defaultERSS112Relay, ERSS112Relay } from './relays/erss112Relay.js';
 import { defaultDeadManMonitor, DeadManMonitor } from './monitor/deadManMonitor.js';
+import { defaultBNSClassifier, BNSClassifierEngine } from './legal/bnsClassifier.js';
+import { defaultBNSSWorker, BNSSCountdownWorker } from './legal/bnssCountdownWorker.js';
+import { defaultBSA63Compiler, BSA63Compiler } from './legal/bsa63Compiler.js';
 import { matchActiveGuardians } from './spatial/guardianMatcher.js';
 import { TriggerMode } from '@she-raksha/schemas';
 
@@ -28,6 +31,9 @@ export interface ServerDependencies {
   smsRelay?: SMSRelay;
   erssRelay?: ERSS112Relay;
   deadManMonitor?: DeadManMonitor;
+  bnsClassifier?: BNSClassifierEngine;
+  bnssWorker?: BNSSCountdownWorker;
+  bsa63Compiler?: BSA63Compiler;
 }
 
 export async function buildServer(dependencies: ServerDependencies = {}): Promise<FastifyInstance> {
@@ -36,6 +42,9 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   const smsRelay = dependencies.smsRelay || defaultSMSRelay;
   const erssRelay = dependencies.erssRelay || defaultERSS112Relay;
   const deadManMonitor = dependencies.deadManMonitor || defaultDeadManMonitor;
+  const bnsClassifier = dependencies.bnsClassifier || defaultBNSClassifier;
+  const bnssWorker = dependencies.bnssWorker || defaultBNSSWorker;
+  const bsa63Compiler = dependencies.bsa63Compiler || defaultBSA63Compiler;
 
   const app = Fastify({
     logger: false, // Keep clean during tests, configurable via options
@@ -228,5 +237,105 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
     });
   });
 
+  // 11. Multilingual BNS Statutory Classification API (FR-EV-004)
+  app.post('/api/v1/legal/efir/classify', async (req, reply) => {
+    try {
+      const { narrativeText, langCodeHint } = req.body as {
+        narrativeText: string;
+        langCodeHint?: string;
+      };
+      if (!narrativeText) {
+        return reply.code(400).send({
+          error: 'BAD_REQUEST',
+          message: 'narrativeText is required',
+        });
+      }
+      const result = bnsClassifier.classifyNarrative(narrativeText, langCodeHint);
+      return reply.code(200).send(result);
+    } catch (err: any) {
+      return reply.code(500).send({
+        error: 'CLASSIFICATION_ERROR',
+        message: err.message,
+      });
+    }
+  });
+
+  // 12. Automated eFIR Generation API (BNSS §173(1))
+  app.post('/api/v1/legal/efir/generate', async (req, reply) => {
+    try {
+      const { efir, classification } = bnsClassifier.generateEFIRRecord(req.body as any);
+      await store.saveEFIRRecord(efir);
+      return reply.code(201).send({
+        efir,
+        classification,
+      });
+    } catch (err: any) {
+      return reply.code(400).send({
+        error: 'EFIR_GENERATION_ERROR',
+        message: err.message,
+      });
+    }
+  });
+
+  // 13. BNSS §173 Countdown Evaluation API (48h NGO early warning & 72h SP escalation)
+  app.post('/api/v1/legal/countdown/evaluate', async (req, reply) => {
+    try {
+      const { currentTimeSeconds } = (req.body as any) || {};
+      const results = await bnssWorker.evaluateRecords(currentTimeSeconds);
+      return reply.code(200).send({ results });
+    } catch (err: any) {
+      return reply.code(500).send({
+        error: 'COUNTDOWN_EVALUATE_ERROR',
+        message: err.message,
+      });
+    }
+  });
+
+  // 14. BSA Section 63 Digital Evidence Certificate Compilation API (FR-EV-007)
+  app.post('/api/v1/legal/bsa63/compile', async (req, reply) => {
+    try {
+      const result = await bsa63Compiler.compileCertificatePack(req.body as any);
+      await store.saveBSA63Certificate(result.pack);
+      return reply.code(201).send({
+        certId: result.pack.certId,
+        pack: result.pack,
+        pdfA3Base64: result.pdfBuffer.toString('base64'),
+        jsonLdDocument: result.jsonLdDocument,
+      });
+    } catch (err: any) {
+      return reply.code(400).send({
+        error: 'BSA63_COMPILE_ERROR',
+        message: err.message,
+      });
+    }
+  });
+
+  // 15. Retrieve eFIR Record
+  app.get('/api/v1/legal/efir/:efirId', async (req, reply) => {
+    const { efirId } = req.params as { efirId: string };
+    const efir = await store.getEFIRRecord(efirId);
+    if (!efir) {
+      return reply.code(404).send({
+        error: 'NOT_FOUND',
+        message: `eFIR record not found: ${efirId}`,
+      });
+    }
+    return reply.code(200).send(efir);
+  });
+
+  // 16. Retrieve BSA §63 Certificate Pack
+  app.get('/api/v1/legal/bsa63/:certId', async (req, reply) => {
+    const { certId } = req.params as { certId: string };
+    const cert = await store.getBSA63Certificate(certId);
+    if (!cert) {
+      return reply.code(404).send({
+        error: 'NOT_FOUND',
+        message: `BSA §63 certificate not found: ${certId}`,
+      });
+    }
+    return reply.code(200).send(cert);
+  });
+
   return app;
 }
+

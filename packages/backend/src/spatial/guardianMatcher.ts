@@ -159,3 +159,4 @@ export function generatePostGISQuery(
     params: [victimLng, victimLat, maxRadiusMeters],
   };
 }
+
