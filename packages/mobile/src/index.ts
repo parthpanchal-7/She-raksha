@@ -22,3 +22,13 @@ export * from './failover/index.js';
 
 // 4. SQLCipher Offline Queue & SOSLog.sol Sync (FR-SOS-005)
 export * from './queue/index.js';
+
+// 5. 5-Second Evidence Vault & In-RAM Zero-Plaintext Pipeline (FR-EV-001, FR-EV-002, NFR-SEC-002)
+export * from './vault/index.js';
+
+// 6. Zero-Knowledge Bystander Groth16 Prover (Circom 2.1, NFR-PERF-003)
+export * from './prover/index.js';
+
+// 7. UI Components, Haptics & Brand Screens (FR-SOS-001..004, BNSS §173, BSA §63)
+export * from './ui/index.js';
+export * from './screens/index.js';

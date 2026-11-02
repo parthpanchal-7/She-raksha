@@ -13,17 +13,23 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/tests/*.test.js",
+    "test": "node --test --test-force-exit dist/tests/*.test.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@she-raksha/circuits": "workspace:*",
     "@she-raksha/crypto-core": "workspace:*",
     "@she-raksha/design-tokens": "workspace:*",
     "@she-raksha/schemas": "workspace:*",
-    "@she-raksha/sdk": "workspace:*"
+    "@she-raksha/sdk": "workspace:*",
+    "circomlibjs": "^0.1.7",
+    "react": "^19.3.1",
+    "snarkjs": "^0.7.6",
+    "viem": "^2.57.14"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
     "typescript": "^5.4.5"
   }
 }
