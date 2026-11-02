@@ -1,0 +1,9 @@
+node_modules
+dist
+.turbo
+*.log
+.git
+.env*
+coverage
+test
+tests

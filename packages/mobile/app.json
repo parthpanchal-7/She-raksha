@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "She-Raksha",
+    "slug": "she-raksha",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0A0D12",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": [
+      "**/*",
+      "assets/models/*",
+      "assets/circuits/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "org.sheraksha.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "audio",
+          "bluetooth-central",
+          "bluetooth-peripheral",
+          "fetch"
+        ],
+        "NSCameraUsageDescription": "Continuous encrypted evidence capture during emergency SOS activation under BSA Section 63.",
+        "NSMicrophoneUsageDescription": "Continuous encrypted audio capture and on-device acoustic distress wake-word detection.",
+        "NSLocationWhenInUseUsageDescription": "High-precision GPS/NavIC telemetry for rapid emergency dispatch to 112 ERSS and nearby guardians.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Background safe-journey breadcrumb tracking and Dead-Man switch timeout monitoring.",
+        "NSBluetoothAlwaysUsageDescription": "Zero-bearer peer-to-peer emergency distress relay via BLE 5.2 Extended Advertising Mesh."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0D12"
+      },
+      "package": "org.sheraksha.app",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.SEND_SMS",
+        "android.permission.BLUETOOTH_ADVERTISE",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.VIBRATE",
+        "android.permission.HIGH_SAMPLING_RATE_SENSORS"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "targetSdkVersion": 34,
+            "compileSdkVersion": 34
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
+    ]
+  }
+}

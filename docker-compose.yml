@@ -1,0 +1,102 @@
+# ==============================================================================
+# She-Raksha (शी-रक्षा) — Multi-Tier Local & Production Infrastructure Compose
+# ==============================================================================
+# Services:
+#   1. postgres: PostgreSQL 16 + PostGIS 3.4 Spatial Database
+#   2. redis: Redis 7 In-Memory Cache & Distributed Lock Manager
+#   3. backend: Fastify Duplex WSS SOS Hub & BNSS §173 Worker
+# ==============================================================================
+
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL 16 with PostGIS 3.4 Spatial Extension
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: sheraksha-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-she_raksha_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/schemas/src/migrations/001_init_core_schema.sql:/docker-entrypoint-initdb.d/001_init_core_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-she_raksha_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sheraksha-network
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis 7 Alpine (In-Memory Pub/Sub & 72-Hour BNSS §173 Timer Lock)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: sheraksha-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-sheraksha_redis_secret}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-sheraksha_redis_secret}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - sheraksha-network
+
+  # ----------------------------------------------------------------------------
+  # 3. She-Raksha Fastify SOS Hub & Backend Service
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    container_name: sheraksha-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-she_raksha_db}?sslmode=disable
+      REDIS_URL: redis://:${REDIS_PASSWORD:-sheraksha_redis_secret}@redis:6379
+      POLYGON_CHAIN_ID: ${POLYGON_CHAIN_ID:-80002}
+      POLYGON_RPC_HTTPS_URL: ${POLYGON_RPC_HTTPS_URL:-https://polygon-amoy.g.alchemy.com/v2/demo}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,https://she-raksha.vercel.app}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - sheraksha-network
+
+volumes:
+  postgres_data:
+    name: sheraksha-postgres-data
+  redis_data:
+    name: sheraksha-redis-data
+
+networks:
+  sheraksha-network:
+    name: sheraksha-network
+    driver: bridge
