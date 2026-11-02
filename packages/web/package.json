@@ -13,17 +13,28 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "echo 'Web test stub'",
-    "lint": "tsc --noEmit"
+    "test": "node --test --test-force-exit dist/tests/*.test.js",
+    "lint": "tsc --noEmit",
+    "screenshots": "node dist/scripts/generateScreenshots.js"
   },
   "dependencies": {
     "@she-raksha/circuits": "workspace:*",
     "@she-raksha/crypto-core": "workspace:*",
     "@she-raksha/design-tokens": "workspace:*",
+    "@she-raksha/mobile": "workspace:*",
     "@she-raksha/schemas": "workspace:*",
-    "@she-raksha/sdk": "workspace:*"
+    "@she-raksha/sdk": "workspace:*",
+    "circomlibjs": "^0.1.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "snarkjs": "^0.7.6",
+    "viem": "^2.57.14"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "playwright": "^1.44.0",
     "typescript": "^5.4.5"
   }
 }
