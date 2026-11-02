@@ -57,3 +57,4 @@ export interface AadhaarVerificationResult {
   hasRedactedCleartextPII: boolean; // Must be true (asserts 0 cleartext Aadhaar number)
   verifiedAt: string;
 }
+

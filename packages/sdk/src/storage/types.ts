@@ -57,3 +57,4 @@ export interface PinHealthStatus {
   /** ISO 8601 UTC timestamp of verification */
   verifiedAt: string;
 }
+

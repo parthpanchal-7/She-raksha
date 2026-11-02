@@ -13,15 +13,24 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "echo 'Backend test stub'",
+    "test": "node --test dist/tests/*.test.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@fastify/cors": "^11.3.1",
+    "@fastify/websocket": "^11.3.6",
     "@she-raksha/contracts": "workspace:*",
     "@she-raksha/crypto-core": "workspace:*",
-    "@she-raksha/schemas": "workspace:*"
+    "@she-raksha/schemas": "workspace:*",
+    "@she-raksha/sdk": "workspace:*",
+    "fastify": "^5.12.7",
+    "h3-js": "^4.5.0",
+    "viem": "^2.57.14",
+    "ws": "^8.22.1"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
     "typescript": "^5.4.5"
   }
 }

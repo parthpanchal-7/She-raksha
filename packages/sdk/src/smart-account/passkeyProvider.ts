@@ -143,3 +143,4 @@ export class PasskeyWebAuthnProvider {
     return this.currentSession;
   }
 }
+

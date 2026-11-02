@@ -131,3 +131,4 @@ export const guardianRegistryAbi = [
     ],
   },
 ] as const;
+

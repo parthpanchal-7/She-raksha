@@ -8,3 +8,4 @@ export { PasskeyWebAuthnProvider } from './passkeyProvider.js';
 export { UserOpBuilder } from './userOpBuilder.js';
 export { BundlerClient } from './bundlerClient.js';
 export { SmartAccountClient, type SmartAccountClientConfig } from './client.js';
+

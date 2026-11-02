@@ -108,3 +108,4 @@ export class SOSLogService {
     return contract.read.isIncidentNotarized([incidentHash]);
   }
 }
+

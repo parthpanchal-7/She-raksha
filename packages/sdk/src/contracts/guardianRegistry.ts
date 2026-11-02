@@ -98,3 +98,4 @@ export class GuardianRegistryService {
     return contract.read.activeGuardianCount();
   }
 }
+

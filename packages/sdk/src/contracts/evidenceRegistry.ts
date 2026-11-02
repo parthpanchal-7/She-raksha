@@ -109,3 +109,4 @@ export class EvidenceRegistryService {
     return contract.read.getSessionMerkleRecord([sessionId]);
   }
 }
+

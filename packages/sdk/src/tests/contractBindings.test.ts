@@ -196,3 +196,4 @@ describe('Typed viem Contract Services Module', () => {
     assert.ok(revokeCalldata.startsWith('0x'));
   });
 });
+

@@ -63,3 +63,4 @@ describe('Pinata Decentralized Vault Client Module', () => {
     assert.ok(health.filecoinDealsCount >= 0);
   });
 });
+

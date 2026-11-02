@@ -120,3 +120,4 @@ export class ComplaintEscrowService {
     return contract.read.timeRemainingToSign([complaintId]);
   }
 }
+

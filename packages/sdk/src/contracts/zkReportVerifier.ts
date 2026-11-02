@@ -85,3 +85,4 @@ export class ZKReportVerifierService {
     return contract.read.totalReportsLogged();
   }
 }
+

@@ -119,3 +119,4 @@ describe('Smart Account & Keyless Web3Auth / Passkey Module', () => {
     assert.equal(receipt.userOpHash, result.userOpHash);
   });
 });
+

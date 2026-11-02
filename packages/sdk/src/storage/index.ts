@@ -5,3 +5,4 @@
 
 export * from './types.js';
 export { PinataVaultClient } from './pinataVaultClient.js';
+

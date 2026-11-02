@@ -61,3 +61,4 @@ export const POLYGON_AMOY_CONFIG: SheRakshaNetworkConfig = {
     paymaster: (process.env['PAYMASTER_ADDRESS'] as Address) || '0x7000000000000000000000000000000000000007',
   },
 };
+

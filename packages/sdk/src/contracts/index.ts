@@ -9,3 +9,4 @@ export { ComplaintEscrowService } from './complaintEscrow.js';
 export { ZKReportVerifierService, type Groth16ProofTuple } from './zkReportVerifier.js';
 export { GuardianRegistryService } from './guardianRegistry.js';
 export { AccessGrantService, GranteeRole } from './accessGrant.js';
+
