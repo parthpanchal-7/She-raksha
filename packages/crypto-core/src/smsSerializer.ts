@@ -194,3 +194,4 @@ export function deserializeSOSFromBase91SMS(smsText: string): SOSAlertSMSPayload
   const binary = base91Decode(smsText);
   return deserializeSOSFromBinary(binary);
 }
+

@@ -148,3 +148,4 @@ export function decryptMediaChunk(
 
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
+

@@ -114,3 +114,4 @@ export function decryptContactDetails<T = ContactDetails>(
   const jsonString = Buffer.from(decrypted).toString('utf-8');
   return JSON.parse(jsonString) as T;
 }
+
