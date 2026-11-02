@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "echo 'Mobile test stub'",
+    "test": "node --test dist/tests/*.test.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "@she-raksha/sdk": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^26.6.6",
     "typescript": "^5.4.5"
   }
 }
