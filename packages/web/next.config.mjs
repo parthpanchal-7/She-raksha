@@ -11,6 +11,9 @@ const nextConfig = {
     "@she-raksha/sdk",
   ],
   webpack: (config, { isServer }) => {
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+    };
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,

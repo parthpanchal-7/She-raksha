@@ -339,3 +339,28 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   return app;
 }
 
+
+export async function startServer(
+  port = Number(process.env.PORT || 8080),
+  host = process.env.HOST || '0.0.0.0'
+): Promise<FastifyInstance> {
+  const app = await buildServer();
+  await app.listen({ port, host });
+  console.log('\n==================================================================');
+  console.log(' She-Raksha (शी-रक्षा) Fastify Hub & WebSocket SOS Service Live');
+  console.log('==================================================================');
+  console.log(' > REST Endpoints  : http://' + host + ':' + port + '/health');
+  console.log(' > WebSocket Hub   : ws://' + host + ':' + port + '/ws/sos (Rail A)');
+  console.log(' > Spatial Matcher : http://' + host + ':' + port + '/api/v1/sos/guardians/match');
+  console.log(' > Statutory e-FIR : http://' + host + ':' + port + '/api/v1/legal/efir/classify-bns');
+  console.log('==================================================================\n');
+  return app;
+}
+
+const isDirectRun = process.argv[1] && (process.argv[1].endsWith('server.js') || process.argv[1].endsWith('index.js'));
+if (isDirectRun || process.env.RUN_SERVER === 'true') {
+  startServer().catch((err) => {
+    console.error('Failed to start She-Raksha backend server:', err);
+    process.exit(1);
+  });
+}

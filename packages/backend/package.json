@@ -12,6 +12,8 @@
     }
   },
   "scripts": {
+    "start": "node dist/server.js",
+    "dev": "node dist/server.js",
     "build": "tsc",
     "test": "node --test dist/tests/*.test.js",
     "lint": "tsc --noEmit"
