@@ -18,7 +18,10 @@
     "coverage": "hardhat coverage",
     "lint": "tsc --noEmit",
     "deploy:local": "hardhat run scripts/deploy.ts --network hardhat",
-    "deploy:amoy": "hardhat run scripts/deploy.ts --network polygonAmoy"
+    "deploy:amoy": "hardhat run scripts/deploy.ts --network polygonAmoy",
+    "check:amoy": "hardhat run scripts/checkNetwork.ts --network polygonAmoy",
+    "smoke:gasless:local": "hardhat run scripts/gaslessSmokeTest.ts --network hardhat",
+    "smoke:gasless:amoy": "hardhat run scripts/gaslessSmokeTest.ts --network polygonAmoy"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
