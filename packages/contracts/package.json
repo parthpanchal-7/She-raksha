@@ -16,7 +16,9 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "coverage": "hardhat coverage",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "deploy:local": "hardhat run scripts/deploy.ts --network hardhat",
+    "deploy:amoy": "hardhat run scripts/deploy.ts --network polygonAmoy"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
