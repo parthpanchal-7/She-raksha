@@ -360,11 +360,9 @@ CREATE TABLE IF NOT EXISTS efir_records (
   -- BNSS §173 statutory 72-hour signing deadline
   -- CHECK constraint enforces: sign_deadline = created_at + INTERVAL '72 hours' (±30s)
   -- CANONICAL RULE: 72 hours = 259,200 seconds (from SKILL.MD)
-  sign_deadline              TIMESTAMPTZ  NOT NULL
-                               GENERATED ALWAYS AS (created_at + INTERVAL '72 hours') STORED,
+  sign_deadline              TIMESTAMPTZ  NOT NULL,
   -- Optional 48-hour NGO early-warning webhook timestamp (deployment-configurable, NOT statutory)
-  ngo_early_warning_at       TIMESTAMPTZ
-                               GENERATED ALWAYS AS (created_at + INTERVAL '48 hours') STORED,
+  ngo_early_warning_at       TIMESTAMPTZ,
   -- ComplaintEscrow.sol bytes32 on-chain escrow ID
   escrow_contract_id         CHAR(66)
                                CHECK (escrow_contract_id ~ '^0x[0-9a-fA-F]{64}$'),
@@ -484,6 +482,25 @@ CREATE TRIGGER guardians_updated_at
 CREATE TRIGGER sos_incidents_updated_at
   BEFORE UPDATE ON sos_incidents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+
+CREATE OR REPLACE FUNCTION compute_efir_deadlines()
+RETURNS TRIGGER LANGUAGE plpgsql AS $
+BEGIN
+  IF NEW.sign_deadline IS NULL THEN
+    NEW.sign_deadline = NEW.created_at + INTERVAL '72 hours';
+  END IF;
+  IF NEW.ngo_early_warning_at IS NULL THEN
+    NEW.ngo_early_warning_at = NEW.created_at + INTERVAL '48 hours';
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS efir_deadlines_trigger ON efir_records;
+CREATE TRIGGER efir_deadlines_trigger
+  BEFORE INSERT ON efir_records
+  FOR EACH ROW EXECUTE FUNCTION compute_efir_deadlines();
 
 CREATE TRIGGER efir_records_updated_at
   BEFORE UPDATE ON efir_records
