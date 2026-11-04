@@ -5,11 +5,10 @@
  *
  * Implements:
  *  - 1920x1080 Zero-Overflow Widescreen Layout with Collapsible Sidebars (Full GIS Map View Mode)
- *  - Interactive Left-Hand Sidebar Navigation (active tab routing, collapse/expand toggle)
- *  - High-Fidelity Realistic India National GIS Map (State boundaries, Arabian Sea, Bay of Bengal, Command Hubs)
+ *  - Fully Interactive Left-Hand Sidebar Navigation (Radar, Active Incidents, e-FIR Escrow, NGO Escalations, Verification, Settings)
+ *  - High-Fidelity Realistic India National 3D GIS Satellite Globe (ISRO Bhuvan, Survey of India, Mappls ERSS-112)
  *  - Tactical 800m PostGIS Radar (Connaught Place, New Delhi radial geometry & Yamuna river corridor)
- *  - Segmented GIS Mode Switcher: [India National GIS] | [Tactical 800m New Delhi Radar]
- *  - Dynamic Zoom and Scale controls with interactive guardian selection
+ *  - Collapsible panels with "Hide" / "Show Nav" / "Show Details" and "⛶ Full GIS View"
  *  - Active Incident Overlay with WSS connection & Base91 telemetry tracking (#3950:1 #980021)
  *  - 40% Statutory Escalation & Escrow Monitor with 72-Hour BNSS §173 Countdown (68:42:15)
  *  - Trust & Proof JetBrains Mono Pill Badges (AES-256-GCM, IPFS CIDv1, Polygon L2 hash)
@@ -50,6 +49,10 @@ import {
   Shield,
   PhoneCall,
   Search,
+  Satellite,
+  Building2,
+  Send,
+  FileCheck,
 } from 'lucide-react';
 import { colors } from '@she-raksha/design-tokens';
 import { Geospatial3DGisGlobe } from './Geospatial3DGisGlobe.js';
@@ -113,20 +116,18 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 }) => {
   const [incidents, setIncidents] = useState<IncidentEscrowItem[]>(initialIncidents);
   const [activeTab, setActiveTab] = useState<string>('e-fir');
-  const [zoomLevel, setZoomLevel] = useState<number>(14);
   const [verifiedCert, setVerifiedCert] = useState<string | null>(null);
   const [syncTime, setSyncTime] = useState<number>(123);
   const [selectedComplaintId, setSelectedComplaintId] = useState<number>(
     initialIncidents[0]?.complaintId ?? 101
   );
 
-  // Panel & GIS States - Default mapMode to 'national' so India Map is immediately visible!
+  // Panel & GIS States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState<boolean>(false);
   const [isFullMapView, setIsFullMapView] = useState<boolean>(false);
-  const [mapMode, setMapMode] = useState<'national' | 'tactical'>('national');
   const [selectedGuardian, setSelectedGuardian] = useState<string | null>(null);
-  const [selectedCityHub, setSelectedCityHub] = useState<string | null>('New Delhi');
+  const [focusMode, setFocusMode] = useState<'radar' | 'national'>('national');
 
   const activeCase =
     incidents.find((i) => i.complaintId === selectedComplaintId) ||
@@ -164,6 +165,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
       });
       setSyncTime((prev) => (prev >= 999 ? 100 : prev + 1));
     }, 1000);
+
     return () => clearInterval(timer);
   }, []);
 
@@ -193,9 +195,15 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
   // Sidebar Tab Click Handler with Responsive Routing
   const handleTabClick = (tabKey: string) => {
     setActiveTab(tabKey);
+    // Expand right panel if it was collapsed so user sees the new tab
+    setIsRightPanelCollapsed(false);
+    setIsFullMapView(false);
+
     if (tabKey === 'radar') {
-      setMapMode('tactical');
+      setFocusMode('radar');
       setSelectedGuardian(null);
+    } else if (tabKey === 'incidents') {
+      setFocusMode('national');
     } else if (tabKey === 'ngo') {
       const urgent = incidents.find((i) => i.hoursRemaining <= 48);
       if (urgent) setSelectedComplaintId(urgent.complaintId);
@@ -208,10 +216,6 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
   // Effective panel widths based on collapse states
   const showSidebar = !isFullMapView && !isSidebarCollapsed;
   const showRightPanel = !isFullMapView && !isRightPanelCollapsed;
-
-  // Zoom scale calculations
-  const zoomScale =
-    mapMode === 'national' ? (zoomLevel / 14) * 1.0 : zoomLevel / 14;
 
   return (
     <div
@@ -338,10 +342,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
       </header>
 
       {/* --------------------------------------------------------------------- */}
-      {/* 2. BODY CONTENT: SIDEBAR + WIDESCREEN 16:9 SPLIT PANES */}
+      {/* 2. BODY CONTAINER: SIDEBAR + MAIN (CENTER GIS + RIGHT ESCROW PANEL) */}
       {/* --------------------------------------------------------------------- */}
       <div className="flex flex-1 w-full h-[calc(100vh-64px)] overflow-hidden relative">
-        {/* Floating Sidebar Reopen Tab when Sidebar is collapsed */}
+        {/* Floating Sidebar Reopen Tab */}
         {!showSidebar && (
           <button
             onClick={() => {
@@ -459,28 +463,31 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                   <div className="flex items-center gap-3">
                     <AlertCircle
                       className="w-4 h-4"
-                      style={{ color: colors.crimsonCoral }}
+                      style={{
+                        color:
+                          activeTab === 'incidents'
+                            ? colors.crimsonCoral
+                            : colors.dimSteel,
+                      }}
                     />
                     <span>Active Incidents</span>
                   </div>
                   <span
-                    className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold"
+                    className="px-1.5 py-0.5 rounded text-[10px] font-bold"
                     style={{
-                      backgroundColor: colors.crimsonCoral,
-                      color: colors.pureFrost,
+                      backgroundColor: 'rgba(255, 59, 92, 0.2)',
+                      color: colors.crimsonCoral,
                     }}
                   >
                     LIVE
                   </span>
                 </button>
 
-                {/* 3. e-FIR Escrow Queue (Active Highlight with Dark Slate and Amber Badge) */}
+                {/* 3. e-FIR Escrow Queue (Active Highlight) */}
                 <button
                   onClick={() => handleTabClick('e-fir')}
                   className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
-                    activeTab === 'e-fir'
-                      ? 'shadow-sm'
-                      : 'hover:bg-dark-slate/60'
+                    activeTab === 'e-fir' ? 'shadow-sm' : 'hover:bg-dark-slate/60'
                   }`}
                   style={{
                     backgroundColor:
@@ -493,7 +500,6 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                         ? colors.pureFrost
                         : colors.mutedSilver,
                   }}
-                  data-testid="nav-efir-escrow-queue"
                 >
                   <div className="flex items-center gap-3">
                     <FileText
@@ -682,6 +688,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               selectedGuardian={selectedGuardian}
               onSelectGuardian={(gId) => setSelectedGuardian(gId)}
               onClearGuardian={() => setSelectedGuardian(null)}
+              focusMode={focusMode}
             />
           </section>
 
@@ -706,7 +713,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
           )}
 
           {/* ================================================================= */}
-          {/* RIGHT PANEL: DYNAMIC VIEW (e-FIR Escrow / Incidents / NGO / Verification) */}
+          {/* RIGHT PANEL: DYNAMIC VIEW (e-FIR Escrow / Incidents / Radar / NGO / Verification) */}
           {/* ================================================================= */}
           {showRightPanel && (
             <section
@@ -738,7 +745,12 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                       fontFamily: "'Plus Jakarta Sans', sans-serif",
                     }}
                   >
-                    <span>Active BNSS §173 e-FIR | SemiBold</span>
+                    {activeTab === 'radar' && <span>PostGIS Proximity Radar & Telemetry</span>}
+                    {activeTab === 'incidents' && <span>Active Multi-Rail SOS Incidents</span>}
+                    {activeTab === 'e-fir' && <span>Active BNSS §173 e-FIR | SemiBold</span>}
+                    {activeTab === 'ngo' && <span>Accredited Legal Aid NGO Escalations</span>}
+                    {activeTab === 'evidence' && <span>BSA §63 Digital Evidence Verifier</span>}
+                    {activeTab === 'settings' && <span>Institutional & Indian GIS Settings</span>}
                   </h2>
                 </div>
                 <button
@@ -751,527 +763,583 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 </button>
               </div>
 
-              {/* Active Escrow Queue List */}
-              <div className="flex flex-col gap-2">
-                <span
-                  className="text-[10px] font-mono font-bold tracking-widest uppercase"
-                  style={{ color: colors.dimSteel }}
-                >
-                  Active Escrow Queue ({incidents.length})
-                </span>
-                <div className="flex flex-col gap-2 max-h-36 overflow-y-auto">
-                  {incidents.map((inc) => {
-                    const isUrgent = inc.hoursRemaining <= 48;
-                    const isSelected = inc.complaintId === activeCase.complaintId;
-                    return (
+              {/* ------------------------------------------------------------- */}
+              {/* TAB 1: GEOSPATIAL RADAR TELEMETRY VIEW */}
+              {/* ------------------------------------------------------------- */}
+              {activeTab === 'radar' && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <div className="p-4 rounded-xl bg-dark-slate border border-subtle-wire flex flex-col gap-2">
+                    <span className="text-xs font-bold text-emerald-shield flex items-center gap-2">
+                      <Crosshair className="w-4 h-4" />
+                      PostGIS ST_DWithin 800m Buffer Active
+                    </span>
+                    <div className="text-xs font-mono text-pure-frost">
+                      Incident Center: 28.6139° N, 77.2090° E (Connaught Place, New Delhi)
+                    </div>
+                    <div className="text-[11px] font-mono text-dim-steel">
+                      Uber H3 Resolution 9 Index: <span className="text-electric-amber">893da11462fffff</span>
+                    </div>
+                  </div>
+
+                  {/* Guardians Live Telemetry Table */}
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-dim-steel">
+                      Active Standby Guardians in Proximity (4)
+                    </span>
+                    {[
+                      { id: 'G-01', dist: '180m', corridor: 'Barakhamba Road', eta: '45s', battery: '96%' },
+                      { id: 'G-02', dist: '290m', corridor: 'Minto Road Overpass', eta: '1m 15s', battery: '89%' },
+                      { id: 'G-03', dist: '420m', corridor: 'Janpath Metro Exit 2', eta: '1m 50s', battery: '92%' },
+                      { id: 'G-04', dist: '510m', corridor: 'Kasturba Gandhi Marg', eta: '2m 20s', battery: '94%' },
+                    ].map((g) => (
                       <div
-                        key={inc.complaintId}
-                        onClick={() => setSelectedComplaintId(inc.complaintId)}
-                        className="p-2.5 rounded-lg flex items-center justify-between cursor-pointer transition-all text-xs hover:border-electric-amber"
+                        key={g.id}
+                        onClick={() => setSelectedGuardian(g.id)}
+                        className="p-3 rounded-xl bg-midnight-obsidian border border-subtle-wire hover:border-emerald-shield transition-all cursor-pointer flex items-center justify-between"
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-mono font-bold text-pure-frost flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-emerald-shield" />
+                            Guardian Node {g.id}
+                          </span>
+                          <span className="text-[11px] text-muted-silver">{g.corridor}</span>
+                        </div>
+                        <div className="text-right font-mono text-xs">
+                          <span className="text-emerald-shield font-bold">{g.dist}</span>
+                          <span className="block text-[10px] text-dim-steel">ETA: {g.eta}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ------------------------------------------------------------- */}
+              {/* TAB 2: ACTIVE INCIDENTS VIEW */}
+              {/* ------------------------------------------------------------- */}
+              {activeTab === 'incidents' && (
+                <div className="flex flex-col gap-3 animate-fadeIn">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-dim-steel">
+                    Active SOS Dispatch Dossiers ({incidents.length})
+                  </span>
+                  {incidents.map((inc) => (
+                    <div
+                      key={inc.complaintId}
+                      onClick={() => setSelectedComplaintId(inc.complaintId)}
+                      className="p-3.5 rounded-xl bg-dark-slate border transition-all cursor-pointer flex flex-col gap-2"
+                      style={{
+                        borderColor:
+                          inc.complaintId === activeCase.complaintId
+                            ? colors.crimsonCoral
+                            : colors.subtleWire,
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-xs text-pure-frost flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-crimson-coral animate-ping" />
+                          {inc.incidentId}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-crimson-coral/20 text-crimson-coral">
+                          ACTIVE SOS
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-silver">
+                        {inc.coarseLocation}
+                      </div>
+                      <div className="text-[11px] font-mono text-electric-amber">
+                        {inc.bnsSection}
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-subtle-wire text-[10px] font-mono text-dim-steel">
+                        <span>H3: {inc.h3Index}</span>
+                        <span className="text-emerald-shield">{inc.guardianCountNearby} Guardians Nearby</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ------------------------------------------------------------- */}
+              {/* TAB 3: e-FIR ESCROW QUEUE VIEW (Default & Contains Test Tokens) */}
+              {/* ------------------------------------------------------------- */}
+              {activeTab === 'e-fir' && (
+                <>
+                  {/* Active Escrow Queue List */}
+                  <div className="flex flex-col gap-2">
+                    <span
+                      className="text-[10px] font-mono font-bold tracking-widest uppercase"
+                      style={{ color: colors.dimSteel }}
+                    >
+                      Active Escrow Queue ({incidents.length})
+                    </span>
+                    <div className="flex flex-col gap-2 max-h-36 overflow-y-auto">
+                      {incidents.map((inc) => {
+                        const isUrgent = inc.hoursRemaining <= 48;
+                        const isSelected = inc.complaintId === activeCase.complaintId;
+                        return (
+                          <div
+                            key={inc.complaintId}
+                            onClick={() => setSelectedComplaintId(inc.complaintId)}
+                            className="p-2.5 rounded-lg flex items-center justify-between cursor-pointer transition-all text-xs hover:border-electric-amber"
+                            style={{
+                              backgroundColor: isSelected
+                                ? colors.darkSlate
+                                : colors.midnightObsidian,
+                              border: `1px solid ${
+                                isSelected ? colors.electricAmber : colors.subtleWire
+                              }`,
+                            }}
+                          >
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-pure-frost">
+                                  {inc.incidentId}
+                                </span>
+                                {isUrgent && (
+                                  <span
+                                    className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                                    style={{
+                                      backgroundColor: 'rgba(255, 159, 28, 0.2)',
+                                      color: colors.electricAmber,
+                                    }}
+                                  >
+                                    48h NGO Early Warning
+                                  </span>
+                                )}
+                              </div>
+                              <span
+                                className="text-[11px]"
+                                style={{ color: colors.mutedSilver }}
+                              >
+                                {inc.coarseLocation} • {inc.bnsSection}
+                              </span>
+                            </div>
+                            <div className="text-right font-mono">
+                              <span
+                                className="text-xs font-bold"
+                                style={{
+                                  color: isUrgent
+                                    ? colors.electricAmber
+                                    : colors.emeraldShield,
+                                }}
+                              >
+                                {`${inc.hoursRemaining}h ${inc.minutesRemaining}m remaining`}
+                              </span>
+                              <span
+                                className="block text-[10px]"
+                                style={{ color: colors.dimSteel }}
+                              >
+                                {inc.guardianCountNearby} guardians nearby
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ----------------------------------------------------------- */}
+                  {/* TIMER CONTAINER: 72-Hour Statutory Countdown Timer Banner */}
+                  {/* ----------------------------------------------------------- */}
+                  <div
+                    className="p-5 rounded-xl flex flex-col gap-2 relative overflow-hidden shadow-lg"
+                    style={{
+                      backgroundColor: colors.darkSlate, // #121824
+                      border: `1px solid ${colors.electricAmber}`, // #FF9F1C solid 1px border
+                      boxShadow: '0 4px 20px rgba(255, 159, 28, 0.1)',
+                    }}
+                    data-testid="72hr-timer-container"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                        style={{ color: colors.electricAmber }}
+                      >
+                        <Clock className="w-4 h-4" />
+                        72-Hour Statutory Countdown Timer
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-mono font-bold"
                         style={{
-                          backgroundColor: isSelected
+                          backgroundColor: 'rgba(255, 159, 28, 0.2)',
+                          color: colors.electricAmber,
+                        }}
+                      >
+                        BNSS §173(1)
+                      </span>
+                    </div>
+
+                    {/* Countdown Digits: 68:42:15 in large monospace */}
+                    <div className="flex items-baseline gap-2 py-1">
+                      <span
+                        className="text-3xl font-mono font-bold tracking-tight text-pure-frost"
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                      >
+                        {String(countdown.hours).padStart(2, '0')}:
+                        {String(countdown.minutes).padStart(2, '0')}:
+                        {String(countdown.seconds).padStart(2, '0')}
+                      </span>
+                      <span className="text-xs font-mono text-dim-steel">
+                        Remaining before statutory escalation to District SP
+                      </span>
+                    </div>
+
+                    {/* Progress Bar towards 72 Hours */}
+                    <div className="w-full bg-midnight-obsidian h-1.5 rounded-full overflow-hidden mt-1">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.max(5, ((72 - countdown.hours) / 72) * 100)}%`,
+                          backgroundColor:
+                            countdown.hours <= 24
+                              ? colors.crimsonCoral
+                              : countdown.hours <= 48
+                              ? colors.electricAmber
+                              : colors.emeraldShield,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* ----------------------------------------------------------- */}
+                  {/* MAPPED STATUTORY PROVISIONS */}
+                  {/* ----------------------------------------------------------- */}
+                  <div
+                    className="p-4 rounded-xl flex flex-col gap-3"
+                    style={{
+                      backgroundColor: colors.darkSlate,
+                      border: `1px solid ${colors.subtleWire}`,
+                    }}
+                  >
+                    <span
+                      className="text-[10px] font-mono font-bold uppercase tracking-wider text-dim-steel"
+                    >
+                      MAPPED STATUTORY PROVISIONS
+                    </span>
+                    <div className="flex flex-col gap-2 text-xs">
+                      <div className="flex items-center justify-between py-1 border-b border-subtle-wire/50">
+                        <span className="font-semibold text-pure-frost flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-shield" />
+                          BNSS Section 173(1) - Zero-FIR
+                        </span>
+                        <span className="text-[11px] font-mono text-dim-steel">
+                          Automated Registration
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-1 border-b border-subtle-wire/50">
+                        <span className="font-semibold text-pure-frost flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-crimson-coral" />
+                          BNS Section 74 (Assault)
+                        </span>
+                        <span className="text-[11px] font-mono text-crimson-coral">
+                          Cognizable / Non-Bailable
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between py-1">
+                        <span className="font-semibold text-pure-frost flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-polygon-purple" />
+                          BNS Section 78 (Stalking)
+                        </span>
+                        <span className="text-[11px] font-mono text-dim-steel">
+                          Cyber & Physical Tracking
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ----------------------------------------------------------- */}
+                  {/* TRUST & PROOF PILL BADGES */}
+                  {/* ----------------------------------------------------------- */}
+                  <div className="flex flex-col gap-2">
+                    <span
+                      className="text-[10px] font-mono tracking-wider text-dim-steel"
+                      style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      Visible monospace Jeti pill badges:
+                    </span>
+                    <div className="flex flex-wrap gap-2 text-xs font-mono">
+                      {/* Badge 1: AES-256-GCM */}
+                      <span
+                        className="px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold shadow-sm"
+                        style={{
+                          backgroundColor: 'rgba(0, 208, 132, 0.12)',
+                          border: `1px solid ${colors.emeraldShield}`,
+                          color: colors.emeraldShield,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        ✓ AES-256-GCM
+                      </span>
+
+                      {/* Badge 2: IPFS CIDv1 */}
+                      <span
+                        className="px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold shadow-sm"
+                        style={{
+                          backgroundColor: 'rgba(0, 208, 132, 0.12)',
+                          border: `1px solid ${colors.emeraldShield}`,
+                          color: colors.emeraldShield,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        <Database className="w-3.5 h-3.5" />
+                        ✓ IPFS CIDv1: bafybeicv5...
+                      </span>
+
+                      {/* Badge 3: Polygon L2 Hash */}
+                      <span
+                        className="px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold shadow-sm"
+                        style={{
+                          backgroundColor: 'rgba(123, 63, 228, 0.15)',
+                          border: `1px solid ${colors.polygonPurple}`,
+                          color: colors.polygonPurple,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        ✓ Polygon L2 hash: 0x89d2c...
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ----------------------------------------------------------- */}
+                  {/* AUDIT & ESCROW MONITOR PANEL */}
+                  {/* ----------------------------------------------------------- */}
+                  <div
+                    className="p-4 rounded-xl flex flex-col gap-3.5"
+                    style={{
+                      backgroundColor: colors.darkSlate,
+                      border: `1px solid ${colors.subtleWire}`,
+                    }}
+                  >
+                    <div className="flex items-center justify-between border-b border-subtle-wire pb-2">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-dim-steel">
+                        AUDIT & ESCROW MONITOR
+                      </span>
+                      <span className="text-[10px] font-mono text-dim-steel">
+                        ComplaintEscrow.sol #101
+                      </span>
+                    </div>
+
+                    {/* Warning Callout: SP Alert Scheduled */}
+                    <div
+                      className="p-3 rounded-lg flex items-center gap-2.5 text-xs font-semibold"
+                      style={{
+                        backgroundColor: 'rgba(255, 159, 28, 0.1)',
+                        border: `1px solid ${colors.electricAmber}`,
+                        color: colors.electricAmber,
+                      }}
+                    >
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      <span>Superintendent of Police (SP) Alert Scheduled: 72 hours</span>
+                    </div>
+
+                    {/* Historical Checkpoints */}
+                    <div className="flex flex-col gap-2 text-xs">
+                      <span className="text-[10px] font-mono text-dim-steel uppercase">
+                        HISTORICAL CHECKPOINTS
+                      </span>
+                      <div className="flex items-center justify-between text-pure-frost font-mono text-[11px]">
+                        <span>Trigger Ingestion Timestamp</span>
+                        <span className="text-dim-steel">72 Nov, 2023, 16 PM</span>
+                      </div>
+                      <div className="flex items-center justify-between text-pure-frost font-mono text-[11px]">
+                        <span>Aadhaar e-Sign checking</span>
+                        <span className="text-emerald-shield flex items-center gap-1 font-bold">
+                          ✓ Verified
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-pure-frost font-mono text-[11px]">
+                        <span>Section 63 BSA Digital Evidence certificate compilation progress</span>
+                        <span className="text-emerald-shield flex items-center gap-1 font-bold">
+                          ✓ Verified
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons: Police Acknowledge & Trigger SP Escalation */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-subtle-wire">
+                      <button
+                        onClick={() => handleAcknowledge(activeCase.complaintId)}
+                        disabled={activeCase.policeAcknowledged}
+                        className="py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                        style={{
+                          backgroundColor: activeCase.policeAcknowledged
                             ? colors.darkSlate
+                            : colors.emeraldShield,
+                          color: activeCase.policeAcknowledged
+                            ? colors.mutedSilver
                             : colors.midnightObsidian,
                           border: `1px solid ${
-                            isSelected ? colors.electricAmber : colors.subtleWire
+                            activeCase.policeAcknowledged
+                              ? colors.subtleWire
+                              : colors.emeraldShield
                           }`,
                         }}
                       >
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-pure-frost">
-                              {inc.incidentId}
-                            </span>
-                            {isUrgent && (
-                              <span
-                                className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                                style={{
-                                  backgroundColor: 'rgba(255, 159, 28, 0.2)',
-                                  color: colors.electricAmber,
-                                }}
-                              >
-                                48h NGO Early Warning
-                              </span>
-                            )}
-                          </div>
-                          <span
-                            className="text-[11px]"
-                            style={{ color: colors.mutedSilver }}
-                          >
-                            {inc.coarseLocation} • {inc.bnsSection}
-                          </span>
-                        </div>
-                        <div className="text-right font-mono">
-                          <span
-                            className="text-xs font-bold"
-                            style={{
-                              color: isUrgent
-                                ? colors.electricAmber
-                                : colors.emeraldShield,
-                            }}
-                          >
-                            {`${inc.hoursRemaining}h ${inc.minutesRemaining}m remaining`}
-                          </span>
-                          <span
-                            className="block text-[10px]"
-                            style={{ color: colors.dimSteel }}
-                          >
-                            {inc.guardianCountNearby} guardians nearby
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>
+                          {activeCase.policeAcknowledged
+                            ? 'Police Acknowledged'
+                            : 'Acknowledge FIR'}
+                        </span>
+                      </button>
 
-              {/* --------------------------------------------------------------- */}
-              {/* TIMER CONTAINER: 72-Hour Statutory Countdown Timer Banner */}
-              {/* In Dark Slate with Electric Amber (#FF9F1C) solid 1px border */}
-              {/* Countdown numbers 68:42:15 in extra large monospace/Sans */}
-              {/* --------------------------------------------------------------- */}
-              <div
-                className="p-5 rounded-xl flex flex-col gap-2 relative overflow-hidden shadow-lg"
-                style={{
-                  backgroundColor: colors.darkSlate, // #121824
-                  border: `1px solid ${colors.electricAmber}`, // #FF9F1C solid 1px border
-                  boxShadow: '0 4px 20px rgba(255, 159, 28, 0.1)',
-                }}
-                data-testid="72hr-timer-container"
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
-                    style={{ color: colors.electricAmber }}
-                  >
-                    <Clock className="w-4 h-4" />
-                    72-Hour Statutory Countdown Timer
-                  </span>
-                  <span
-                    className="text-[10px] font-mono px-2 py-0.5 rounded"
-                    style={{
-                      backgroundColor: 'rgba(255, 159, 28, 0.15)',
-                      color: colors.electricAmber,
-                    }}
-                  >
-                    BNSS §173(1)
-                  </span>
-                </div>
-
-                {/* Extra Large Monospace Countdown Numbers: 68:42:15 */}
-                <div
-                  className="text-4xl font-bold tracking-wider my-1"
-                  style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    color: colors.electricAmber, // #FF9F1C
-                  }}
-                >
-                  {`${String(countdown.hours).padStart(2, '0')}:${String(
-                    countdown.minutes
-                  ).padStart(2, '0')}:${String(countdown.seconds).padStart(2, '0')}`}
-                </div>
-
-                <div
-                  className="flex items-center justify-between text-xs pt-1 border-t"
-                  style={{ borderColor: 'rgba(255, 159, 28, 0.2)' }}
-                >
-                  <span style={{ color: colors.mutedSilver }}>
-                    Filing Deadline: 72h from Distress Activation
-                  </span>
-                  <span style={{ color: colors.dimSteel }}>
-                    48h NGO Early Warning Triggered
-                  </span>
-                </div>
-              </div>
-
-              {/* --------------------------------------------------------------- */}
-              {/* TEXT PANEL: Mapped Statutory Provisions of Active Case */}
-              {/* • BNSS Section 173(1) - Zero-FIR */}
-              {/* • BNS Section 74 (Assault) */}
-              {/* • BNS Section 78 (Stalking) */}
-              {/* --------------------------------------------------------------- */}
-              <div
-                className="p-4 rounded-xl flex flex-col gap-2.5 shadow-md"
-                style={{
-                  backgroundColor: colors.darkSlate, // #121824
-                  border: `1px solid ${colors.subtleWire}`, // #222F3E
-                }}
-                data-testid="statutory-provisions-panel"
-              >
-                <span
-                  className="text-xs font-bold uppercase tracking-wider"
-                  style={{ color: colors.pureFrost }}
-                >
-                  Mapped Statutory Provisions
-                </span>
-                <div className="flex flex-col gap-2 text-xs font-medium">
-                  <div
-                    className="flex items-center gap-2 p-2 rounded-lg"
-                    style={{
-                      backgroundColor: colors.midnightObsidian,
-                      border: `1px solid ${colors.subtleWire}`,
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: colors.emeraldShield }}
-                    />
-                    <span className="text-pure-frost font-mono font-semibold">
-                      • BNSS Section 173(1) - Zero-FIR
-                    </span>
-                    <span
-                      className="ml-auto text-[10px]"
-                      style={{ color: colors.dimSteel }}
-                    >
-                      Automated Registration
-                    </span>
-                  </div>
-
-                  <div
-                    className="flex items-center gap-2 p-2 rounded-lg"
-                    style={{
-                      backgroundColor: colors.midnightObsidian,
-                      border: `1px solid ${colors.subtleWire}`,
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: colors.crimsonCoral }}
-                    />
-                    <span className="text-pure-frost font-mono font-semibold">
-                      • BNS Section 74 (Assault)
-                    </span>
-                    <span
-                      className="ml-auto text-[10px] font-bold"
-                      style={{ color: colors.crimsonCoral }}
-                    >
-                      Cognizable / Non-Bailable
-                    </span>
-                  </div>
-
-                  <div
-                    className="flex items-center gap-2 p-2 rounded-lg"
-                    style={{
-                      backgroundColor: colors.midnightObsidian,
-                      border: `1px solid ${colors.subtleWire}`,
-                    }}
-                  >
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: colors.polygonPurple }}
-                    />
-                    <span className="text-pure-frost font-mono font-semibold">
-                      • BNS Section 78 (Stalking)
-                    </span>
-                    <span
-                      className="ml-auto text-[10px]"
-                      style={{ color: colors.polygonPurple }}
-                    >
-                      Cyber & Physical Tailing
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* --------------------------------------------------------------- */}
-              {/* CARD COMPONENT: TRUST & PROOF BADGES PANEL */}
-              {/* Label: Visible monospace Jeti pill badges: (Muted Silver #94A3B8) */}
-              {/* ✓ AES-256-GCM, ✓ IPFS CIDv1: bafybeicv5..., ✓ Polygon L2 hash: 0x89d2c... */}
-              {/* --------------------------------------------------------------- */}
-              <div
-                className="p-4 rounded-xl flex flex-col gap-3 shadow-md"
-                style={{
-                  backgroundColor: colors.darkSlate, // #121824
-                  border: `1px solid ${colors.subtleWire}`, // #222F3E
-                }}
-                data-testid="trust-proof-badges-panel"
-              >
-                <span
-                  className="text-xs font-mono block"
-                  style={{
-                    color: colors.mutedSilver, // #94A3B8
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                >
-                  Visible monospace Jeti pill badges:
-                </span>
-
-                <div className="flex flex-wrap gap-2.5">
-                  {/* Badge 1: ✓ AES-256-GCM */}
-                  <div
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider uppercase shadow-sm"
-                    style={{
-                      backgroundColor: 'rgba(0, 208, 132, 0.1)',
-                      border: `1px solid ${colors.emeraldShield}`, // #00D084
-                      color: colors.emeraldShield,
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                    data-testid="badge-aes-gcm"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>✓ AES-256-GCM</span>
-                  </div>
-
-                  {/* Badge 2: ✓ IPFS CIDv1: bafybeicv5... */}
-                  <div
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider shadow-sm"
-                    style={{
-                      backgroundColor: colors.midnightObsidian,
-                      border: `1px solid ${colors.subtleWire}`, // #222F3E
-                      color: colors.emeraldShield,
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                    data-testid="badge-ipfs-cid"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>✓ IPFS CIDv1: bafybeicv5...</span>
-                  </div>
-
-                  {/* Badge 3: ✓ Polygon L2 hash: 0x89d2c... */}
-                  <div
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider shadow-sm"
-                    style={{
-                      backgroundColor: 'rgba(123, 63, 228, 0.12)',
-                      border: `1px solid ${colors.polygonPurple}`, // #7B3FE4 border
-                      color: colors.polygonPurple,
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                    data-testid="badge-polygon-l2"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>✓ Polygon L2 hash: 0x89d2c...</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* --------------------------------------------------------------- */}
-              {/* CARD COMPONENT: AUDIT & ESCROW MONITOR PANEL */}
-              {/* Status text: ⚠️ Superintendent of Police (SP) Alert Scheduled: 72 hours */}
-              {/* Historical Checkpoint mapping dates (72 Nov, 2023, 16 PM) */}
-              {/* Status items: Aadhaar e-Sign checking, BSA §63 Digital Evidence */}
-              {/* --------------------------------------------------------------- */}
-              <div
-                className="p-4 rounded-xl flex flex-col gap-3 shadow-md"
-                style={{
-                  backgroundColor: colors.darkSlate, // #121824
-                  border: `1px solid ${colors.subtleWire}`, // #222F3E
-                }}
-                data-testid="audit-escrow-monitor-panel"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-pure-frost">
-                    Audit & Escrow Monitor
-                  </span>
-                  <span className="text-[10px] font-mono text-dim-steel">
-                    ComplaintEscrow.sol #101
-                  </span>
-                </div>
-
-                {/* Active Escalation Status Text */}
-                <div
-                  className="p-2.5 rounded-lg flex items-center gap-2 text-xs font-semibold"
-                  style={{
-                    backgroundColor: 'rgba(255, 159, 28, 0.1)',
-                    border: `1px solid rgba(255, 159, 28, 0.3)`,
-                    color: colors.electricAmber,
-                  }}
-                >
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  <span>
-                    ⚠️ Superintendent of Police (SP) Alert Scheduled: 72 hours
-                  </span>
-                </div>
-
-                {/* Historical Checkpoints */}
-                <div className="flex flex-col gap-1.5 text-xs">
-                  <span
-                    className="text-[10px] font-mono font-bold uppercase tracking-wider"
-                    style={{ color: colors.dimSteel }}
-                  >
-                    Historical Checkpoints
-                  </span>
-                  <div
-                    className="flex items-center justify-between p-2 rounded-lg font-mono text-[11px]"
-                    style={{
-                      backgroundColor: colors.midnightObsidian,
-                      border: `1px solid ${colors.subtleWire}`,
-                      color: colors.mutedSilver,
-                      fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                  >
-                    <span>Trigger Ingestion Timestamp</span>
-                    <span className="text-pure-frost font-bold">
-                      72 Nov, 2023, 16 PM
-                    </span>
-                  </div>
-                </div>
-
-                {/* Status Items: Aadhaar e-Sign & Section 63 BSA Digital Evidence */}
-                <div
-                  className="flex flex-col gap-2 pt-1 border-t"
-                  style={{ borderColor: colors.subtleWire }}
-                >
-                  {/* Item 1: Aadhaar e-Sign checking */}
-                  <div className="flex items-center justify-between text-xs">
-                    <span style={{ color: colors.mutedSilver }}>
-                      Aadhaar e-Sign checking
-                    </span>
-                    <span
-                      className="flex items-center gap-1 font-bold text-xs"
-                      style={{ color: colors.emeraldShield }}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />✓ Verified
-                    </span>
-                  </div>
-
-                  {/* Item 2: Section 63 BSA Digital Evidence */}
-                  <div className="flex items-center justify-between text-xs">
-                    <span style={{ color: colors.mutedSilver }}>
-                      Section 63 BSA Digital Evidence certificate compilation
-                      progress
-                    </span>
-                    <span
-                      className="flex items-center gap-1 font-bold text-xs"
-                      style={{ color: colors.emeraldShield }}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />✓ Verified
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action Buttons: Acknowledge FIR & Trigger SP Escalation */}
-                <div className="grid grid-cols-2 gap-2 pt-2">
-                  {!activeCase.policeAcknowledged ? (
-                    <button
-                      data-testid={`btn-ack-${activeCase.complaintId}`}
-                      onClick={() => handleAcknowledge(activeCase.complaintId)}
-                      className="w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95"
-                      style={{
-                        backgroundColor: colors.emeraldShield,
-                        color: colors.midnightObsidian,
-                      }}
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      Record FIR Ack (SHO)
-                    </button>
-                  ) : (
-                    <div
-                      className="w-full py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
-                      style={{
-                        backgroundColor: 'rgba(0, 208, 132, 0.15)',
-                        border: `1px solid ${colors.emeraldShield}`,
-                        color: colors.emeraldShield,
-                      }}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      FIR Acknowledged ✓
+                      <button
+                        onClick={() => handleTriggerSP(activeCase.complaintId)}
+                        disabled={activeCase.isEscalatedToSP}
+                        className="py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                        style={{
+                          backgroundColor: activeCase.isEscalatedToSP
+                            ? colors.darkSlate
+                            : 'rgba(255, 59, 92, 0.15)',
+                          color: colors.crimsonCoral,
+                          border: `1px solid ${colors.crimsonCoral}`,
+                        }}
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                        <span>
+                          {activeCase.isEscalatedToSP
+                            ? 'SP Escalated'
+                            : 'Trigger SP Escalation'}
+                        </span>
+                      </button>
                     </div>
-                  )}
+                  </div>
+                </>
+              )}
+
+              {/* ------------------------------------------------------------- */}
+              {/* TAB 4: NGO ESCALATIONS VIEW */}
+              {/* ------------------------------------------------------------- */}
+              {activeTab === 'ngo' && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <div className="p-4 rounded-xl bg-dark-slate border border-polygon-purple/40 flex flex-col gap-2">
+                    <span className="text-xs font-bold text-polygon-purple flex items-center gap-2">
+                      <ShieldAlert className="w-4 h-4" />
+                      Statutory NGO Escalation Conduit (BNSS §173(4))
+                    </span>
+                    <p className="text-xs text-muted-silver leading-relaxed">
+                      Complaints exceeding statutory SLA thresholds or flagged for early warning are automatically synchronized with accredited legal aid NGOs and the District Superintendent of Police (SP).
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-dim-steel">
+                      Accredited NGO Partners Connected
+                    </span>
+                    {[
+                      { name: 'National Commission for Women (NCW)', status: 'Active Relay', lat: '12ms' },
+                      { name: 'Delhi State Legal Services Authority (DSLSA)', status: 'Active Relay', lat: '18ms' },
+                      { name: 'Jagori Women Safety Network', status: 'Active Relay', lat: '24ms' },
+                    ].map((ngo) => (
+                      <div key={ngo.name} className="p-3 rounded-xl bg-midnight-obsidian border border-subtle-wire flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-semibold text-pure-frost block">{ngo.name}</span>
+                          <span className="text-[10px] font-mono text-emerald-shield">{ngo.status} • {ngo.lat}</span>
+                        </div>
+                        <button className="px-2.5 py-1 rounded bg-dark-slate border border-subtle-wire text-[10px] font-semibold text-pure-frost hover:border-polygon-purple">
+                          Hotline Relay
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ------------------------------------------------------------- */}
+              {/* TAB 5: EVIDENCE VERIFICATION VIEW */}
+              {/* ------------------------------------------------------------- */}
+              {activeTab === 'evidence' && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <div className="p-4 rounded-xl bg-dark-slate border border-emerald-shield/40 flex flex-col gap-2">
+                    <span className="text-xs font-bold text-emerald-shield flex items-center gap-2">
+                      <Key className="w-4 h-4" />
+                      BSA Section 63 Digital Evidence Cryptographic Verifier
+                    </span>
+                    <div className="text-[11px] font-mono text-muted-silver">
+                      Certificate ID: <span className="text-pure-frost font-bold">{activeCase.bsa63CertId}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-midnight-obsidian border border-subtle-wire flex flex-col gap-2.5 text-xs font-mono">
+                    <div className="flex items-center justify-between">
+                      <span className="text-dim-steel">StrongBox Hardware Attestation:</span>
+                      <span className="text-emerald-shield font-bold">✓ Hardware Rooted</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-dim-steel">Sequential SHA-256 Chunks:</span>
+                      <span className="text-emerald-shield font-bold">✓ 100% Intact</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-dim-steel">Merkle Root Verification:</span>
+                      <span className="text-emerald-shield font-bold">✓ On-Chain Verified</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-dim-steel">IPFS CIDv1 Multi-Node Pin:</span>
+                      <span className="text-emerald-shield font-bold">✓ 3+ Nodes Verified</span>
+                    </div>
+                  </div>
 
                   <button
-                    data-testid={`btn-verify-bsa-${activeCase.complaintId}`}
                     onClick={() => handleVerify(activeCase.bsa63CertId)}
-                    className="w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95 shadow-sm"
+                    className="w-full py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-95"
                     style={{
-                      backgroundColor: colors.midnightObsidian,
-                      border: `1px solid ${colors.polygonPurple}`,
-                      color: colors.polygonPurple,
+                      backgroundColor: colors.emeraldShield,
+                      color: colors.midnightObsidian,
                     }}
                   >
-                    <Key className="w-3.5 h-3.5" />
-                    Verify BSA §63
+                    <FileCheck className="w-4 h-4" />
+                    <span>{verifiedCert ? '✓ Cryptographically Verified' : 'Verify BSA §63 Digital Evidence'}</span>
                   </button>
                 </div>
-              </div>
+              )}
 
-              {/* Verified Modal/Card if open */}
-              {verifiedCert && (
-                <div
-                  className="p-3.5 rounded-xl flex flex-col gap-2 animate-fadeIn shadow-xl"
-                  style={{
-                    backgroundColor: 'rgba(0, 208, 132, 0.08)',
-                    border: `1px solid ${colors.emeraldShield}`,
-                  }}
-                  data-testid="bsa63-verify-panel"
-                >
-                  <div
-                    className="flex items-center justify-between text-xs font-bold"
-                    style={{ color: colors.emeraldShield }}
-                  >
-                    <span>✓ BSA §63 CERTIFICATE ADMISSIBLE IN COURT</span>
-                    <button
-                      onClick={() => setVerifiedCert(null)}
-                      className="text-dim-steel hover:text-pure-frost text-sm cursor-pointer"
-                    >
-                      ✕
-                    </button>
+              {/* ------------------------------------------------------------- */}
+              {/* TAB 6: SETTINGS VIEW */}
+              {/* ------------------------------------------------------------- */}
+              {activeTab === 'settings' && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <div className="p-4 rounded-xl bg-dark-slate border border-subtle-wire flex flex-col gap-2">
+                    <span className="text-xs font-bold text-pure-frost flex items-center gap-2">
+                      <Sliders className="w-4 h-4 text-polygon-purple" />
+                      Institutional Command & GIS Configuration
+                    </span>
+                    <p className="text-xs text-muted-silver">
+                      Configure Indian Geospatial APIs (ISRO Bhuvan, Survey of India Bharat Maps, Mappls ERSS-112), AWS Nitro TEE Keymaster enclave, and telemetry rates.
+                    </p>
                   </div>
-                  <p
-                    className="text-[11px] leading-relaxed"
-                    style={{ color: colors.mutedSilver }}
-                  >
-                    Cert ID:{' '}
-                    <strong className="text-pure-frost">{verifiedCert}</strong>{' '}
-                    • Hardware Enclave: Android StrongBox Keymaster • SHA-256
-                    Merkle Chain: 100% Intact.
-                  </p>
+
+                  <div className="flex flex-col gap-2">
+                    <div className="p-3 rounded-xl bg-midnight-obsidian border border-subtle-wire flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-pure-frost">ISRO Bhuvan NRSC API</span>
+                        <span className="text-[10px] font-mono text-emerald-shield">WMS v1.3 Connected</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-shield/20 text-emerald-shield font-bold">ACTIVE</span>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-midnight-obsidian border border-subtle-wire flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-pure-frost">Mappls ERSS-112 Grid</span>
+                        <span className="text-[10px] font-mono text-electric-amber">Police Dispatch Online</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-electric-amber/20 text-electric-amber font-bold">CONNECTED</span>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-midnight-obsidian border border-subtle-wire flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-pure-frost">Survey of India Sovereign Boundaries</span>
+                        <span className="text-[10px] font-mono text-polygon-purple">Statutory Demarcation</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-polygon-purple/20 text-polygon-purple font-bold">VERIFIED</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
           )}
         </main>
       </div>
-
-      {/* Settings Modal if Opened from Sidebar */}
-      {activeTab === 'settings' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div
-            className="w-full max-w-md p-6 rounded-2xl flex flex-col gap-4 shadow-2xl"
-            style={{
-              backgroundColor: colors.darkSlate,
-              border: `1px solid ${colors.subtleWire}`,
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-polygon-purple" style={{ color: colors.polygonPurple }} />
-                <h3 className="font-bold text-sm text-pure-frost">Institutional Hub Configuration</h3>
-              </div>
-              <button
-                onClick={() => setActiveTab('e-fir')}
-                className="text-dim-steel hover:text-pure-frost text-sm cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="flex flex-col gap-2.5 text-xs">
-              <div className="p-3 rounded-lg bg-midnight-obsidian flex justify-between items-center border border-subtle-wire">
-                <span>PostGIS Spatial Resolution</span>
-                <span className="font-mono text-emerald-shield">Uber H3 Res-9 (~100m)</span>
-              </div>
-              <div className="p-3 rounded-lg bg-midnight-obsidian flex justify-between items-center border border-subtle-wire">
-                <span>Active Geofence Dispatch</span>
-                <span className="font-mono text-electric-amber">800m Buffer GiST</span>
-              </div>
-              <div className="p-3 rounded-lg bg-midnight-obsidian flex justify-between items-center border border-subtle-wire">
-                <span>StrongBox Hardware Keymaster</span>
-                <span className="font-mono text-emerald-shield">Verified v3.4</span>
-              </div>
-              <div className="p-3 rounded-lg bg-midnight-obsidian flex justify-between items-center border border-subtle-wire">
-                <span>Polygon Amoy Paymaster</span>
-                <span className="font-mono text-polygon-purple">Gasless (0 POL UserOp)</span>
-              </div>
-            </div>
-            <button
-              onClick={() => setActiveTab('e-fir')}
-              className="w-full py-2.5 rounded-lg text-xs font-bold text-midnight-obsidian cursor-pointer hover:opacity-90 active:scale-95"
-              style={{ backgroundColor: colors.emeraldShield }}
-            >
-              Close Settings
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
