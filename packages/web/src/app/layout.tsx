@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import './globals.css';
 
 export const metadata = {
   title: 'She-Raksha (शी-रक्षा) — Decentralized Women’s Safety & Legal Platform',
