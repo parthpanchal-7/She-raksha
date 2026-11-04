@@ -10,5 +10,5 @@ import "./UserOperation.sol";
 interface IEntryPoint {
     function depositTo(address account) external payable;
     function withdrawTo(address payable withdrawAddress, uint256 withdrawAmount) external;
-    function getBalanceOf(address account) external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
 }

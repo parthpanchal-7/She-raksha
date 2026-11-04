@@ -485,7 +485,7 @@ CREATE TRIGGER sos_incidents_updated_at
 
 
 CREATE OR REPLACE FUNCTION compute_efir_deadlines()
-RETURNS TRIGGER LANGUAGE plpgsql AS $
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.sign_deadline IS NULL THEN
     NEW.sign_deadline = NEW.created_at + INTERVAL '72 hours';
@@ -495,7 +495,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS efir_deadlines_trigger ON efir_records;
 CREATE TRIGGER efir_deadlines_trigger

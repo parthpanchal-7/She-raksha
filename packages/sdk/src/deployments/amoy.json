@@ -1,0 +1,21 @@
+{
+  "network": "polygonAmoy",
+  "chainId": 80002,
+  "deployer": "0x9e70e6C5b708B165685Cf5D5A5271D6d397D4e20",
+  "timestamp": "2026-11-04T19:51:57.192Z",
+  "contracts": {
+    "Groth16Verifier": "0x32ddEC9C7b9d358fAD448E2476e7787ECC8D4F1c",
+    "ZKReportVerifier": "0xaB736738d23b8194140E05e696fC77F305551b9e",
+    "EvidenceRegistry": "0x9a48db98B9a1F70E2C4FAa027025443b3DbA7a29",
+    "SOSLog": "0xB138844B71C272c5D354e040C64e97427E7b33A1",
+    "GuardianRegistry": "0xfe0e18e37F7219A15E42014E3c3395e0aFBC5413",
+    "ComplaintEscrow": "0xC1abbA2c778d2B540a87f2fccA667783CFe7c9Fb",
+    "AccessGrant": "0xdF9D3C13Def66E5e6A01ba72e187b56A8A9016AA",
+    "SheRakshaPaymaster": "0x65a100b79a34Fc2b05Cd01FB538B068c19A786f0",
+    "EntryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
+  },
+  "constants": {
+    "statutoryEscrowHours": 72,
+    "statutoryEscrowSeconds": 259200
+  }
+}

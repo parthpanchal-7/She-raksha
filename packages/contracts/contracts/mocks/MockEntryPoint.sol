@@ -21,7 +21,11 @@ contract MockEntryPoint is IEntryPoint {
         require(success, "Withdraw failed");
     }
 
-    function getBalanceOf(address account) external view override returns (uint256) {
+    function balanceOf(address account) external view override returns (uint256) {
+        return balances[account];
+    }
+
+    function getBalanceOf(address account) external view returns (uint256) {
         return balances[account];
     }
 

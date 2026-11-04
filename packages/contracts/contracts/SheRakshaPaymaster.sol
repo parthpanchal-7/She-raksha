@@ -241,7 +241,11 @@ contract SheRakshaPaymaster is Ownable, ReentrancyGuard, Pausable {
      */
     function getDeposit() public view returns (uint256) {
         if (address(entryPoint) != address(0)) {
-            return entryPoint.getBalanceOf(address(this));
+            try entryPoint.balanceOf(address(this)) returns (uint256 bal) {
+                return bal;
+            } catch {
+                return address(this).balance;
+            }
         }
         return address(this).balance;
     }

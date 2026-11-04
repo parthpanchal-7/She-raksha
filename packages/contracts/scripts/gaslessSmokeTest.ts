@@ -76,6 +76,11 @@ async function main() {
   const sponsorshipSignature = await deployer.signMessage(ethers.getBytes(sponsorshipHash));
   console.log("3. Generated Paymaster Verifying Signature from Sponsor.");
 
+  const gasOverrides = chainId === 80002 ? {
+    maxPriorityFeePerGas: ethers.parseUnits("35", "gwei"),
+    maxFeePerGas: ethers.parseUnits("70", "gwei"),
+  } : {};
+
   // 4. Validate & Sponsor Gas on SheRakshaPaymaster
   console.log("4. Sponsoring Gas via SheRakshaPaymaster.validateAndSponsor()...");
   const sponsorTx = await paymaster.connect(deployer).validateAndSponsor(
@@ -83,7 +88,8 @@ async function main() {
     evidenceRegistryAddress,
     nonce,
     maxCost,
-    sponsorshipSignature
+    sponsorshipSignature,
+    gasOverrides
   );
   await sponsorTx.wait();
   console.log("   ✓ Paymaster successfully sponsored gas!");
@@ -95,7 +101,8 @@ async function main() {
     chunkId,
     chunkHash,
     ipfsCID,
-    "0x"
+    "0x",
+    gasOverrides
   );
   await anchorTx.wait();
   console.log("   ✓ Evidence chunk successfully anchored on Polygon L2!");

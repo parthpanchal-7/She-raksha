@@ -238,7 +238,7 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
   });
 
   // 11. Multilingual BNS Statutory Classification API (FR-EV-004)
-  app.post('/api/v1/legal/efir/classify', async (req, reply) => {
+  const handleBnsClassify = async (req: any, reply: any) => {
     try {
       const { narrativeText, langCodeHint } = req.body as {
         narrativeText: string;
@@ -258,7 +258,11 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
         message: err.message,
       });
     }
-  });
+  };
+
+  app.post('/api/v1/legal/efir/classify', handleBnsClassify);
+  app.post('/api/v1/legal/efir/classify-bns', handleBnsClassify);
+  app.post('/api/v1/efir/classify-bns', handleBnsClassify);
 
   // 12. Automated eFIR Generation API (BNSS §173(1))
   app.post('/api/v1/legal/efir/generate', async (req, reply) => {

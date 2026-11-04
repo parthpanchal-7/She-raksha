@@ -20,62 +20,98 @@ async function main() {
   console.log(`Deployer Balance : ${ethers.formatEther(balance)} POL / ETH`);
   console.log("------------------------------------------------------------------");
 
+  const gasOverrides = chainId === 80002 ? {
+    maxPriorityFeePerGas: ethers.parseUnits("35", "gwei"),
+    maxFeePerGas: ethers.parseUnits("70", "gwei"),
+  } : {};
+
+  const existingAmoy: Record<string, string> = chainId === 80002 ? {
+    Groth16Verifier: "0x32ddEC9C7b9d358fAD448E2476e7787ECC8D4F1c",
+    ZKReportVerifier: "0xaB736738d23b8194140E05e696fC77F305551b9e",
+    EvidenceRegistry: "0x9a48db98B9a1F70E2C4FAa027025443b3DbA7a29",
+    SOSLog: "0xB138844B71C272c5D354e040C64e97427E7b33A1",
+    GuardianRegistry: "0xfe0e18e37F7219A15E42014E3c3395e0aFBC5413",
+    ComplaintEscrow: "0xC1abbA2c778d2B540a87f2fccA667783CFe7c9Fb",
+    AccessGrant: "0xdF9D3C13Def66E5e6A01ba72e187b56A8A9016AA",
+  } : {};
+
   // 1. Deploy Groth16Verifier
   console.log("1. Deploying Groth16Verifier...");
-  const Groth16VerifierFactory = await ethers.getContractFactory("Groth16Verifier");
-  const groth16Verifier = await Groth16VerifierFactory.deploy();
-  await groth16Verifier.waitForDeployment();
-  const groth16VerifierAddress = await groth16Verifier.getAddress();
-  console.log(`   ✓ Groth16Verifier deployed at: ${groth16VerifierAddress}`);
+  let groth16VerifierAddress = existingAmoy["Groth16Verifier"];
+  if (!groth16VerifierAddress) {
+    const Groth16VerifierFactory = await ethers.getContractFactory("Groth16Verifier");
+    const groth16Verifier = await Groth16VerifierFactory.deploy(gasOverrides);
+    await groth16Verifier.waitForDeployment();
+    groth16VerifierAddress = await groth16Verifier.getAddress();
+  }
+  console.log(`   ✓ Groth16Verifier at: ${groth16VerifierAddress}`);
 
   // 2. Deploy ZKReportVerifier (linked to Groth16Verifier)
   console.log("2. Deploying ZKReportVerifier...");
-  const ZKReportVerifierFactory = await ethers.getContractFactory("ZKReportVerifier");
-  const zkReportVerifier = await ZKReportVerifierFactory.deploy(deployer.address, groth16VerifierAddress);
-  await zkReportVerifier.waitForDeployment();
-  const zkReportVerifierAddress = await zkReportVerifier.getAddress();
-  console.log(`   ✓ ZKReportVerifier deployed at: ${zkReportVerifierAddress}`);
+  let zkReportVerifierAddress = existingAmoy["ZKReportVerifier"];
+  if (!zkReportVerifierAddress) {
+    const ZKReportVerifierFactory = await ethers.getContractFactory("ZKReportVerifier");
+    const zkReportVerifier = await ZKReportVerifierFactory.deploy(deployer.address, groth16VerifierAddress, gasOverrides);
+    await zkReportVerifier.waitForDeployment();
+    zkReportVerifierAddress = await zkReportVerifier.getAddress();
+  }
+  console.log(`   ✓ ZKReportVerifier at: ${zkReportVerifierAddress}`);
 
   // 3. Deploy EvidenceRegistry
   console.log("3. Deploying EvidenceRegistry...");
-  const EvidenceRegistryFactory = await ethers.getContractFactory("EvidenceRegistry");
-  const evidenceRegistry = await EvidenceRegistryFactory.deploy(deployer.address);
-  await evidenceRegistry.waitForDeployment();
-  const evidenceRegistryAddress = await evidenceRegistry.getAddress();
-  console.log(`   ✓ EvidenceRegistry deployed at: ${evidenceRegistryAddress}`);
+  let evidenceRegistryAddress = existingAmoy["EvidenceRegistry"];
+  if (!evidenceRegistryAddress) {
+    const EvidenceRegistryFactory = await ethers.getContractFactory("EvidenceRegistry");
+    const evidenceRegistry = await EvidenceRegistryFactory.deploy(deployer.address, gasOverrides);
+    await evidenceRegistry.waitForDeployment();
+    evidenceRegistryAddress = await evidenceRegistry.getAddress();
+  }
+  console.log(`   ✓ EvidenceRegistry at: ${evidenceRegistryAddress}`);
 
   // 4. Deploy SOSLog
   console.log("4. Deploying SOSLog...");
-  const SOSLogFactory = await ethers.getContractFactory("SOSLog");
-  const sosLog = await SOSLogFactory.deploy(deployer.address);
-  await sosLog.waitForDeployment();
-  const sosLogAddress = await sosLog.getAddress();
-  console.log(`   ✓ SOSLog deployed at: ${sosLogAddress}`);
+  let sosLogAddress = existingAmoy["SOSLog"];
+  if (!sosLogAddress) {
+    const SOSLogFactory = await ethers.getContractFactory("SOSLog");
+    const sosLog = await SOSLogFactory.deploy(deployer.address, gasOverrides);
+    await sosLog.waitForDeployment();
+    sosLogAddress = await sosLog.getAddress();
+  }
+  console.log(`   ✓ SOSLog at: ${sosLogAddress}`);
 
   // 5. Deploy GuardianRegistry
   console.log("5. Deploying GuardianRegistry...");
-  const minStakeWei = ethers.parseEther("0.01"); // 0.01 POL min stake
-  const GuardianRegistryFactory = await ethers.getContractFactory("GuardianRegistry");
-  const guardianRegistry = await GuardianRegistryFactory.deploy(deployer.address, minStakeWei);
-  await guardianRegistry.waitForDeployment();
-  const guardianRegistryAddress = await guardianRegistry.getAddress();
-  console.log(`   ✓ GuardianRegistry deployed at: ${guardianRegistryAddress}`);
+  let guardianRegistryAddress = existingAmoy["GuardianRegistry"];
+  if (!guardianRegistryAddress) {
+    const minStakeWei = ethers.parseEther("0.01"); // 0.01 POL min stake
+    const GuardianRegistryFactory = await ethers.getContractFactory("GuardianRegistry");
+    const guardianRegistry = await GuardianRegistryFactory.deploy(deployer.address, minStakeWei, gasOverrides);
+    await guardianRegistry.waitForDeployment();
+    guardianRegistryAddress = await guardianRegistry.getAddress();
+  }
+  console.log(`   ✓ GuardianRegistry at: ${guardianRegistryAddress}`);
 
   // 6. Deploy ComplaintEscrow (BNSS §173 72-Hour Statutory Constant)
   console.log("6. Deploying ComplaintEscrow...");
-  const ComplaintEscrowFactory = await ethers.getContractFactory("ComplaintEscrow");
-  const complaintEscrow = await ComplaintEscrowFactory.deploy(deployer.address);
-  await complaintEscrow.waitForDeployment();
-  const complaintEscrowAddress = await complaintEscrow.getAddress();
-  console.log(`   ✓ ComplaintEscrow deployed at: ${complaintEscrowAddress}`);
+  let complaintEscrowAddress = existingAmoy["ComplaintEscrow"];
+  if (!complaintEscrowAddress) {
+    const ComplaintEscrowFactory = await ethers.getContractFactory("ComplaintEscrow");
+    const complaintEscrow = await ComplaintEscrowFactory.deploy(deployer.address, gasOverrides);
+    await complaintEscrow.waitForDeployment();
+    complaintEscrowAddress = await complaintEscrow.getAddress();
+  }
+  console.log(`   ✓ ComplaintEscrow at: ${complaintEscrowAddress}`);
 
   // 7. Deploy AccessGrant
   console.log("7. Deploying AccessGrant...");
-  const AccessGrantFactory = await ethers.getContractFactory("AccessGrant");
-  const accessGrant = await AccessGrantFactory.deploy(deployer.address);
-  await accessGrant.waitForDeployment();
-  const accessGrantAddress = await accessGrant.getAddress();
-  console.log(`   ✓ AccessGrant deployed at: ${accessGrantAddress}`);
+  let accessGrantAddress = existingAmoy["AccessGrant"];
+  if (!accessGrantAddress) {
+    const AccessGrantFactory = await ethers.getContractFactory("AccessGrant");
+    const accessGrant = await AccessGrantFactory.deploy(deployer.address, gasOverrides);
+    await accessGrant.waitForDeployment();
+    accessGrantAddress = await accessGrant.getAddress();
+  }
+  console.log(`   ✓ AccessGrant at: ${accessGrantAddress}`);
 
   // 8. Deploy SheRakshaPaymaster
   console.log("8. Deploying SheRakshaPaymaster...");
@@ -85,7 +121,7 @@ async function main() {
     : (process.env.ERC4337_ENTRYPOINT_ADDRESS || CANONICAL_ENTRYPOINT_V07);
 
   const SheRakshaPaymasterFactory = await ethers.getContractFactory("SheRakshaPaymaster");
-  const paymaster = await SheRakshaPaymasterFactory.deploy(deployer.address, entryPointAddress, verifyingSigner);
+  const paymaster = await SheRakshaPaymasterFactory.deploy(deployer.address, entryPointAddress, verifyingSigner, gasOverrides);
   await paymaster.waitForDeployment();
   const paymasterAddress = await paymaster.getAddress();
   console.log(`   ✓ SheRakshaPaymaster deployed at: ${paymasterAddress}`);
@@ -97,11 +133,12 @@ async function main() {
     sosLogAddress,
     complaintEscrowAddress,
     zkReportVerifierAddress,
-    accessGrantAddress
+    accessGrantAddress,
+    gasOverrides
   );
   await txBatch.wait();
 
-  const txGuardian = await paymaster.setWhitelistedTarget(guardianRegistryAddress, true);
+  const txGuardian = await paymaster.setWhitelistedTarget(guardianRegistryAddress, true, gasOverrides);
   await txGuardian.wait();
   console.log("   ✓ Whitelisted all 6 core contracts on Paymaster.");
 

@@ -47,6 +47,7 @@ const config: HardhatUserConfig = {
       url: process.env.POLYGON_AMOY_RPC_URL || "https://rpc-amoy.polygon.technology",
       chainId: 80002,
       accounts: accounts.length > 0 ? accounts : undefined,
+      gasPrice: 35000000000, // 35 Gwei priority fee floor for Polygon Amoy
     },
     polygonMainnet: {
       url: process.env.POLYGON_MAINNET_RPC_URL || "https://polygon-rpc.com",
