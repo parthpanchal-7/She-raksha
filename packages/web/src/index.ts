@@ -13,3 +13,4 @@ export * from './components/DecoyWeatherCalculator.js';
 export * from './components/SurvivorCommandCenter.js';
 export * from './components/ZKBystanderPortal.js';
 export * from './components/InstitutionalDashboard.js';
+export * from './components/Geospatial3DGisGlobe.js';
