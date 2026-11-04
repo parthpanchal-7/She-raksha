@@ -473,10 +473,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                     <span>Active Incidents</span>
                   </div>
                   <span
-                    className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider"
                     style={{
-                      backgroundColor: 'rgba(255, 59, 92, 0.2)',
-                      color: colors.crimsonCoral,
+                      backgroundColor: colors.crimsonCoral, // Crimson Coral #FF3B5C background
+                      color: colors.pureFrost,
                     }}
                   >
                     LIVE
@@ -508,13 +508,13 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                     />
                     <span className="font-semibold">e-FIR Escrow Queue</span>
                   </div>
-                  {/* Electric Amber Badge '2' */}
+                  {/* Circular Outline Badge '2' in Electric Amber #FF9F1C */}
                   <span
-                    className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono font-bold"
                     style={{
-                      backgroundColor: 'rgba(255, 159, 28, 0.15)',
-                      border: `1px solid ${colors.electricAmber}`, // #FF9F1C
+                      border: `1px solid ${colors.electricAmber}`, // #FF9F1C circular outline
                       color: colors.electricAmber,
+                      backgroundColor: 'transparent',
                     }}
                   >
                     2
@@ -974,9 +974,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                         className="text-3xl font-mono font-bold tracking-tight text-pure-frost"
                         style={{ fontFamily: "'JetBrains Mono', monospace" }}
                       >
-                        {String(countdown.hours).padStart(2, '0')}:
-                        {String(countdown.minutes).padStart(2, '0')}:
-                        {String(countdown.seconds).padStart(2, '0')}
+                        {`${String(countdown.hours).padStart(2, '0')}:${String(countdown.minutes).padStart(2, '0')}:${String(countdown.seconds).padStart(2, '0')}`}
                       </span>
                       <span className="text-xs font-mono text-dim-steel">
                         Remaining before statutory escalation to District SP

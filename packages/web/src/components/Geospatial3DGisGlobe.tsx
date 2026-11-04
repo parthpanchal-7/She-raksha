@@ -23,7 +23,6 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import * as maplibregl from 'maplibre-gl';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import {
   Plus,
@@ -212,251 +211,265 @@ export const Geospatial3DGisGlobe: React.FC<Geospatial3DGisGlobeProps> = ({
   // Initialize MapLibre with ISRO Bhuvan / Bharat Maps / 3D Satellite Sources
   useEffect(() => {
     if (typeof window === 'undefined' || !mapContainerRef.current) return;
+    let isCancelled = false;
 
-    try {
-      // Check WebGL support
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) {
-        setWebGlAvailable(false);
-        return;
-      }
+    async function initMap() {
+      try {
+        // Check WebGL support
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) {
+          setWebGlAvailable(false);
+          return;
+        }
 
-      const map = new maplibregl.Map({
-        container: mapContainerRef.current,
-        style: {
-          version: 8,
-          sources: {
-            'satellite-source': {
-              type: 'raster',
-              tiles: getProviderTiles(activeProvider),
-              tileSize: 256,
-              attribution: 'ISRO Bhuvan / Survey of India / Mappls ERSS-112',
-            },
-            'bharat-maps-labels': {
-              type: 'raster',
-              tiles: [
-                'https://basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
-              ],
-              tileSize: 256,
-            },
-          },
-          layers: [
-            // Base Satellite / Topo Raster Layer
-            {
-              id: 'satellite-base-layer',
-              type: 'raster',
-              source: 'satellite-source',
-              minzoom: 0,
-              maxzoom: 20,
-              paint: {
-                'raster-opacity': 0.92,
+        // Dynamically import MapLibre GL to ensure full SSR and CommonJS safety
+        const maplibregl = await import('maplibre-gl');
+        if (isCancelled || !mapContainerRef.current) return;
+
+        const MapConstructor = (maplibregl as any).Map || (maplibregl as any).default?.Map;
+        const MarkerConstructor = (maplibregl as any).Marker || (maplibregl as any).default?.Marker;
+
+        const map = new MapConstructor({
+          container: mapContainerRef.current,
+          style: {
+            version: 8,
+            sources: {
+              'satellite-source': {
+                type: 'raster',
+                tiles: getProviderTiles(activeProvider),
+                tileSize: 256,
+                attribution: 'ISRO Bhuvan / Survey of India / Mappls ERSS-112',
+              },
+              'bharat-maps-labels': {
+                type: 'raster',
+                tiles: [
+                  'https://basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png',
+                ],
+                tileSize: 256,
               },
             },
-            // Sovereign Place & Administrative Labels
-            {
-              id: 'bharat-labels-layer',
-              type: 'raster',
-              source: 'bharat-maps-labels',
-              minzoom: 1,
-              maxzoom: 20,
-              paint: {
-                'raster-opacity': 0.85,
+            layers: [
+              // Base Satellite / Topo Raster Layer
+              {
+                id: 'satellite-base-layer',
+                type: 'raster',
+                source: 'satellite-source',
+                minzoom: 0,
+                maxzoom: 20,
+                paint: {
+                  'raster-opacity': 0.92,
+                },
               },
-            },
-          ],
-        },
-        center: [78.9629, 22.5937], // Sovereign Geographical Center of India
-        zoom: 4.6,
-        pitch: 45, // 3D Topographical Perspective Pitch
-        bearing: -10, // 3D Oblique Angle
-        attributionControl: false,
-      });
-
-      map.on('load', () => {
-        setMapLoaded(true);
-
-        // -------------------------------------------------------------------
-        // Layer: Official Survey of India (SoI) Sovereign National Border
-        // -------------------------------------------------------------------
-        map.addSource('india-sovereign-border-src', {
-          type: 'geojson',
-          data: INDIA_SOVEREIGN_BORDER_GEOJSON,
-        });
-
-        // Glowing Purple Sovereign Border Line
-        map.addLayer({
-          id: 'india-sovereign-border-glow',
-          type: 'line',
-          source: 'india-sovereign-border-src',
-          paint: {
-            'line-color': '#7B3FE4',
-            'line-width': 3.5,
-            'line-opacity': 0.75,
-            'line-blur': 2,
+              // Sovereign Place & Administrative Labels
+              {
+                id: 'bharat-labels-layer',
+                type: 'raster',
+                source: 'bharat-maps-labels',
+                minzoom: 1,
+                maxzoom: 20,
+                paint: {
+                  'raster-opacity': 0.85,
+                },
+              },
+            ],
           },
+          center: [78.9629, 22.5937], // Sovereign Geographical Center of India
+          zoom: 4.6,
+          pitch: 45, // 3D Topographical Perspective Pitch
+          bearing: -10, // 3D Oblique Angle
+          attributionControl: false,
         });
 
-        map.addLayer({
-          id: 'india-sovereign-border-solid',
-          type: 'line',
-          source: 'india-sovereign-border-src',
-          paint: {
-            'line-color': '#A855F7',
-            'line-width': 1.8,
-          },
-        });
+        map.on('load', () => {
+          if (isCancelled) return;
+          setMapLoaded(true);
 
-        // -------------------------------------------------------------------
-        // PostGIS 800m Geofence Buffer Polygon Layer (ST_DWithin)
-        // -------------------------------------------------------------------
-        const geofence800m = createGeoJSONCircle(INCIDENT_CENTER, 800);
-        const geofence400m = createGeoJSONCircle(INCIDENT_CENTER, 400);
-
-        map.addSource('geofence-800m-src', {
-          type: 'geojson',
-          data: geofence800m,
-        });
-
-        map.addSource('geofence-400m-src', {
-          type: 'geojson',
-          data: geofence400m,
-        });
-
-        // 800m Geofence Fill: Transparent Crimson Coral
-        map.addLayer({
-          id: 'geofence-800m-fill',
-          type: 'fill',
-          source: 'geofence-800m-src',
-          paint: {
-            'fill-color': '#FF3B5C',
-            'fill-opacity': 0.18,
-          },
-        });
-
-        // 800m Geofence Border: 1px Solid Crimson Coral
-        map.addLayer({
-          id: 'geofence-800m-border',
-          type: 'line',
-          source: 'geofence-800m-src',
-          paint: {
-            'line-color': '#FF3B5C',
-            'line-width': 1.5,
-            'line-dasharray': [4, 4],
-          },
-        });
-
-        // 400m Inner Proximity Line: Emerald Shield
-        map.addLayer({
-          id: 'geofence-400m-border',
-          type: 'line',
-          source: 'geofence-400m-src',
-          paint: {
-            'line-color': '#00D084',
-            'line-width': 1,
-            'line-opacity': 0.6,
-          },
-        });
-
-        // -------------------------------------------------------------------
-        // Marker 1: Active Incident at New Delhi (Crimson Coral Pulsing Ring)
-        // -------------------------------------------------------------------
-        const incidentEl = document.createElement('div');
-        incidentEl.className = 'cursor-pointer flex items-center justify-center';
-        incidentEl.innerHTML = `
-          <div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
-            <div style="position: absolute; width: 40px; height: 40px; border-radius: 50%; background-color: #FF3B5C; opacity: 0.35; animation: ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-            <div style="position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 2px dashed #FF3B5C;"></div>
-            <div style="width: 10px; height: 10px; border-radius: 50%; background-color: #FF3B5C; box-shadow: 0 0 12px #FF3B5C;"></div>
-            <div style="position: absolute; top: 46px; left: 50%; transform: translateX(-50%); background: rgba(18, 24, 36, 0.95); border: 1px solid #FF3B5C; color: #FF3B5C; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
-              ACTIVE INCIDENT: NEW DELHI
-            </div>
-          </div>
-        `;
-        incidentEl.onclick = () => {
-          map.flyTo({
-            center: INCIDENT_CENTER,
-            zoom: 14.5,
-            pitch: 55,
-            bearing: -20,
-            duration: 2000,
+          // -------------------------------------------------------------------
+          // Layer: Official Survey of India (SoI) Sovereign National Border
+          // -------------------------------------------------------------------
+          map.addSource('india-sovereign-border-src', {
+            type: 'geojson',
+            data: INDIA_SOVEREIGN_BORDER_GEOJSON,
           });
-          setMapViewFocus('delhi');
-        };
 
-        new maplibregl.Marker({ element: incidentEl })
-          .setLngLat(INCIDENT_CENTER)
-          .addTo(map);
+          // Glowing Purple Sovereign Border Line
+          map.addLayer({
+            id: 'india-sovereign-border-glow',
+            type: 'line',
+            source: 'india-sovereign-border-src',
+            paint: {
+              'line-color': '#7B3FE4',
+              'line-width': 3.5,
+              'line-opacity': 0.75,
+              'line-blur': 2,
+            },
+          });
 
-        // -------------------------------------------------------------------
-        // Markers 2: Regional Command Hubs (Emerald Shield #00D084)
-        // -------------------------------------------------------------------
-        REGIONAL_COMMAND_HUBS.forEach((hub) => {
-          const hubEl = document.createElement('div');
-          hubEl.className = 'cursor-pointer flex items-center justify-center';
-          hubEl.innerHTML = `
-            <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-              <div style="position: absolute; width: 24px; height: 24px; border-radius: 50%; background-color: #00D084; opacity: 0.25;"></div>
-              <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #00D084; box-shadow: 0 0 8px #00D084;"></div>
-              <div style="position: absolute; top: 26px; left: 50%; transform: translateX(-50%); background: rgba(18, 24, 36, 0.9); border: 1px solid rgba(0, 208, 132, 0.4); color: #F8FAFC; font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; white-space: nowrap; pointer-events: none;">
-                ${hub.name}
+          map.addLayer({
+            id: 'india-sovereign-border-solid',
+            type: 'line',
+            source: 'india-sovereign-border-src',
+            paint: {
+              'line-color': '#A855F7',
+              'line-width': 1.8,
+            },
+          });
+
+          // -------------------------------------------------------------------
+          // PostGIS 800m Geofence Buffer Polygon Layer (ST_DWithin)
+          // -------------------------------------------------------------------
+          const geofence800m = createGeoJSONCircle(INCIDENT_CENTER, 800);
+          const geofence400m = createGeoJSONCircle(INCIDENT_CENTER, 400);
+
+          map.addSource('geofence-800m-src', {
+            type: 'geojson',
+            data: geofence800m,
+          });
+
+          map.addSource('geofence-400m-src', {
+            type: 'geojson',
+            data: geofence400m,
+          });
+
+          // 800m Geofence Fill: Transparent Crimson Coral
+          map.addLayer({
+            id: 'geofence-800m-fill',
+            type: 'fill',
+            source: 'geofence-800m-src',
+            paint: {
+              'fill-color': '#FF3B5C',
+              'fill-opacity': 0.18,
+            },
+          });
+
+          // 800m Geofence Border: 1px Solid Crimson Coral
+          map.addLayer({
+            id: 'geofence-800m-border',
+            type: 'line',
+            source: 'geofence-800m-src',
+            paint: {
+              'line-color': '#FF3B5C',
+              'line-width': 1.5,
+              'line-dasharray': [4, 4],
+            },
+          });
+
+          // 400m Inner Proximity Line: Emerald Shield
+          map.addLayer({
+            id: 'geofence-400m-border',
+            type: 'line',
+            source: 'geofence-400m-src',
+            paint: {
+              'line-color': '#00D084',
+              'line-width': 1,
+              'line-opacity': 0.6,
+            },
+          });
+
+          // -------------------------------------------------------------------
+          // Marker 1: Active Incident at New Delhi (Crimson Coral Pulsing Ring)
+          // -------------------------------------------------------------------
+          const incidentEl = document.createElement('div');
+          incidentEl.className = 'cursor-pointer flex items-center justify-center';
+          incidentEl.innerHTML = `
+            <div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+              <div style="position: absolute; width: 40px; height: 40px; border-radius: 50%; background-color: #FF3B5C; opacity: 0.35; animation: ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+              <div style="position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 2px dashed #FF3B5C;"></div>
+              <div style="width: 10px; height: 10px; border-radius: 50%; background-color: #FF3B5C; box-shadow: 0 0 12px #FF3B5C;"></div>
+              <div style="position: absolute; top: 46px; left: 50%; transform: translateX(-50%); background: rgba(18, 24, 36, 0.95); border: 1px solid #FF3B5C; color: #FF3B5C; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+                ACTIVE INCIDENT: NEW DELHI
               </div>
             </div>
           `;
-          hubEl.onclick = () => {
+          incidentEl.onclick = () => {
             map.flyTo({
-              center: hub.coords,
-              zoom: 11,
-              pitch: 45,
-              duration: 1800,
+              center: INCIDENT_CENTER,
+              zoom: 14.5,
+              pitch: 55,
+              bearing: -20,
+              duration: 2000,
             });
+            setMapViewFocus('delhi');
           };
 
-          new maplibregl.Marker({ element: hubEl }).setLngLat(hub.coords).addTo(map);
-        });
-
-        // -------------------------------------------------------------------
-        // Markers 3: Nearby Community Guardians around New Delhi Incident
-        // -------------------------------------------------------------------
-        NEARBY_GUARDIANS.forEach((g) => {
-          const gEl = document.createElement('div');
-          gEl.className = 'cursor-pointer';
-          gEl.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 4px; background: rgba(18, 24, 36, 0.90); border: 1px solid #00D084; border-radius: 12px; padding: 2px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
-              <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #00D084; box-shadow: 0 0 6px #00D084;"></span>
-              <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: bold; color: #00D084;">${g.id} (${g.dist})</span>
-            </div>
-          `;
-          gEl.onclick = () => {
-            onSelectGuardian?.(g.id);
-          };
-
-          new maplibregl.Marker({ element: gEl })
-            .setLngLat([INCIDENT_CENTER[0] + g.offset[0], INCIDENT_CENTER[1] + g.offset[1]])
+          new MarkerConstructor({ element: incidentEl })
+            .setLngLat(INCIDENT_CENTER)
             .addTo(map);
-        });
-      });
 
-      // Cursor movement coordinate tracking
-      map.on('mousemove', (e) => {
-        const lat = parseFloat(e.lngLat.lat.toFixed(4));
-        const lng = parseFloat(e.lngLat.lng.toFixed(4));
-        const elev = Math.round(210 + Math.abs(lat - 28.6) * 50 + Math.abs(lng - 77.2) * 30);
-        setCursorCoords({
-          lat,
-          lng,
-          elevation: elev,
-          h3Index: activeCase.h3Index || '893da11462fffff',
-        });
-      });
+          // -------------------------------------------------------------------
+          // Markers 2: Regional Command Hubs (Emerald Shield #00D084)
+          // -------------------------------------------------------------------
+          REGIONAL_COMMAND_HUBS.forEach((hub) => {
+            const hubEl = document.createElement('div');
+            hubEl.className = 'cursor-pointer flex items-center justify-center';
+            hubEl.innerHTML = `
+              <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+                <div style="position: absolute; width: 24px; height: 24px; border-radius: 50%; background-color: #00D084; opacity: 0.25;"></div>
+                <div style="width: 8px; height: 8px; border-radius: 50%; background-color: #00D084; box-shadow: 0 0 8px #00D084;"></div>
+                <div style="position: absolute; top: 26px; left: 50%; transform: translateX(-50%); background: rgba(18, 24, 36, 0.9); border: 1px solid rgba(0, 208, 132, 0.4); color: #F8FAFC; font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; white-space: nowrap; pointer-events: none;">
+                  ${hub.name}
+                </div>
+              </div>
+            `;
+            hubEl.onclick = () => {
+              map.flyTo({
+                center: hub.coords,
+                zoom: 11,
+                pitch: 45,
+                duration: 1800,
+              });
+            };
 
-      mapRef.current = map;
-    } catch (err) {
-      console.warn('MapLibre 3D GIS initialization fallback active:', err);
-      setWebGlAvailable(false);
+            new MarkerConstructor({ element: hubEl }).setLngLat(hub.coords).addTo(map);
+          });
+
+          // -------------------------------------------------------------------
+          // Markers 3: Nearby Community Guardians around New Delhi Incident
+          // -------------------------------------------------------------------
+          NEARBY_GUARDIANS.forEach((g) => {
+            const gEl = document.createElement('div');
+            gEl.className = 'cursor-pointer';
+            gEl.innerHTML = `
+              <div style="display: flex; align-items: center; gap: 4px; background: rgba(18, 24, 36, 0.90); border: 1px solid #00D084; border-radius: 12px; padding: 2px 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background-color: #00D084; box-shadow: 0 0 6px #00D084;"></span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: bold; color: #00D084;">${g.id} (${g.dist})</span>
+              </div>
+            `;
+            gEl.onclick = () => {
+              onSelectGuardian?.(g.id);
+            };
+
+            new MarkerConstructor({ element: gEl })
+              .setLngLat([INCIDENT_CENTER[0] + g.offset[0], INCIDENT_CENTER[1] + g.offset[1]])
+              .addTo(map);
+          });
+        });
+
+        // Cursor movement coordinate tracking
+        map.on('mousemove', (e: any) => {
+          const lat = parseFloat(e.lngLat.lat.toFixed(4));
+          const lng = parseFloat(e.lngLat.lng.toFixed(4));
+          const elev = Math.round(210 + Math.abs(lat - 28.6) * 50 + Math.abs(lng - 77.2) * 30);
+          setCursorCoords({
+            lat,
+            lng,
+            elevation: elev,
+            h3Index: activeCase.h3Index || '893da11462fffff',
+          });
+        });
+
+        mapRef.current = map;
+      } catch (err) {
+        console.warn('MapLibre 3D GIS initialization fallback active:', err);
+        setWebGlAvailable(false);
+      }
     }
 
+    initMap();
+
     return () => {
+      isCancelled = true;
       mapRef.current?.remove();
       mapRef.current = null;
     };
