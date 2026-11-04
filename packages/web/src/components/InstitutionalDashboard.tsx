@@ -1,11 +1,14 @@
+'use client';
+
 /**
  * @she-raksha/web — Institutional Command & Compliance Dashboard
  *
  * Implements:
  *  - 1920x1080 Zero-Overflow Widescreen Layout with Collapsible Sidebars (Full GIS Map View Mode)
  *  - Interactive Left-Hand Sidebar Navigation (active tab routing, collapse/expand toggle)
- *  - Realistic India National GIS Map with major command hubs (Delhi, Mumbai, Bengaluru, Kolkata, Hyderabad)
- *  - Tactical 800m PostGIS Radar (Connaught Place, New Delhi radial street geometry & Yamuna river corridor)
+ *  - High-Fidelity Realistic India National GIS Map (State boundaries, Arabian Sea, Bay of Bengal, Command Hubs)
+ *  - Tactical 800m PostGIS Radar (Connaught Place, New Delhi radial geometry & Yamuna river corridor)
+ *  - Segmented GIS Mode Switcher: [India National GIS] | [Tactical 800m New Delhi Radar]
  *  - Dynamic Zoom and Scale controls with interactive guardian selection
  *  - Active Incident Overlay with WSS connection & Base91 telemetry tracking (#3950:1 #980021)
  *  - 40% Statutory Escalation & Escrow Monitor with 72-Hour BNSS §173 Countdown (68:42:15)
@@ -44,6 +47,9 @@ import {
   UserCheck,
   Activity,
   Sliders,
+  Shield,
+  PhoneCall,
+  Search,
 } from 'lucide-react';
 import { colors } from '@she-raksha/design-tokens';
 
@@ -113,13 +119,13 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
     initialIncidents[0]?.complaintId ?? 101
   );
 
-  // New Interactive Panel & GIS States
+  // Panel & GIS States - Default mapMode to 'national' so India Map is immediately visible!
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useState<boolean>(false);
   const [isFullMapView, setIsFullMapView] = useState<boolean>(false);
-  const [mapMode, setMapMode] = useState<'tactical' | 'national'>('tactical');
+  const [mapMode, setMapMode] = useState<'national' | 'tactical'>('national');
   const [selectedGuardian, setSelectedGuardian] = useState<string | null>(null);
-  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [selectedCityHub, setSelectedCityHub] = useState<string | null>('New Delhi');
 
   const activeCase =
     incidents.find((i) => i.complaintId === selectedComplaintId) ||
@@ -183,21 +189,18 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
     onVerifyBSA63?.(certId);
   };
 
-  // Sidebar Tab Click Handler with Responsive View Switching
+  // Sidebar Tab Click Handler with Responsive Routing
   const handleTabClick = (tabKey: string) => {
     setActiveTab(tabKey);
     if (tabKey === 'radar') {
       setMapMode('tactical');
       setSelectedGuardian(null);
     } else if (tabKey === 'ngo') {
-      // Find urgent case if exists
       const urgent = incidents.find((i) => i.hoursRemaining <= 48);
       if (urgent) setSelectedComplaintId(urgent.complaintId);
     } else if (tabKey === 'evidence') {
       setVerifiedCert(activeCase.bsa63CertId);
       onVerifyBSA63?.(activeCase.bsa63CertId);
-    } else if (tabKey === 'settings') {
-      setShowSettingsModal(true);
     }
   };
 
@@ -207,7 +210,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
   // Zoom scale calculations
   const zoomScale =
-    mapMode === 'national' ? (zoomLevel / 14) * 0.9 : zoomLevel / 14;
+    mapMode === 'national' ? (zoomLevel / 14) * 1.0 : zoomLevel / 14;
 
   return (
     <div
@@ -223,7 +226,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
       {/* 1. HEADER NAVIGATION (Height 64px, 1px solid #222F3E) */}
       {/* --------------------------------------------------------------------- */}
       <header
-        className="flex items-center justify-between px-6 h-16 w-full z-20 flex-shrink-0"
+        className="flex items-center justify-between px-6 h-16 w-full z-30 flex-shrink-0 shadow-md"
         style={{
           height: '64px',
           borderBottom: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -268,17 +271,17 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
           </span>
         </div>
 
-        {/* Right-Side Status Panel */}
+        {/* Right-Side Status & Panel Controls */}
         <div className="flex items-center gap-3">
-          {/* Full Screen Map Toggle in Header */}
+          {/* Full Screen Map Toggle Button */}
           <button
             onClick={() => {
               setIsFullMapView(!isFullMapView);
             }}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-sm active:scale-95"
             style={{
               backgroundColor: isFullMapView
-                ? 'rgba(123, 63, 228, 0.2)'
+                ? 'rgba(123, 63, 228, 0.25)'
                 : colors.darkSlate,
               border: `1px solid ${
                 isFullMapView ? colors.polygonPurple : colors.subtleWire
@@ -286,7 +289,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               color: isFullMapView ? colors.polygonPurple : colors.pureFrost,
             }}
             title={
-              isFullMapView ? 'Exit Full GIS Map View' : 'Full GIS Map View'
+              isFullMapView ? 'Exit Full Screen GIS View' : 'Maximize Full View of GIS Map'
             }
           >
             {isFullMapView ? (
@@ -294,12 +297,12 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
             ) : (
               <Maximize2 className="w-3.5 h-3.5" />
             )}
-            <span>{isFullMapView ? 'Exit Full View' : 'Full GIS View'}</span>
+            <span>{isFullMapView ? 'Exit Full View' : '⛶ Full GIS View'}</span>
           </button>
 
           {/* Badge: Active Platform Status */}
           <div
-            className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm"
             style={{
               backgroundColor: 'rgba(0, 208, 132, 0.1)',
               border: `1px solid ${colors.emeraldShield}`, // #00D084
@@ -316,7 +319,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
           {/* Telemetry Synchronicity Label */}
           <div
-            className="flex items-center gap-2 px-3 py-1 rounded-md text-xs font-mono"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono shadow-sm"
             style={{
               backgroundColor: colors.darkSlate, // #121824
               border: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -344,16 +347,16 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               setIsSidebarCollapsed(false);
               setIsFullMapView(false);
             }}
-            className="absolute top-4 left-4 z-30 p-2 rounded-lg shadow-xl cursor-pointer transition-all flex items-center gap-1 text-xs font-semibold"
+            className="absolute top-5 left-5 z-40 px-3 py-2 rounded-xl shadow-2xl cursor-pointer transition-all flex items-center gap-2 text-xs font-bold border active:scale-95 hover:bg-dark-slate"
             style={{
               backgroundColor: colors.darkSlate,
-              border: `1px solid ${colors.subtleWire}`,
+              borderColor: colors.emeraldShield,
               color: colors.pureFrost,
             }}
-            title="Expand Sidebar Navigation"
+            title="Expand Navigation Sidebar"
           >
             <ChevronRight className="w-4 h-4 text-emerald-shield" style={{ color: colors.emeraldShield }} />
-            <span>Nav</span>
+            <span>Show Nav</span>
           </button>
         )}
 
@@ -362,7 +365,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
         {/* ------------------------------------------------------------------- */}
         {showSidebar && (
           <aside
-            className="flex flex-col justify-between p-4 h-full flex-shrink-0 transition-all duration-300"
+            className="flex flex-col justify-between p-4 h-full flex-shrink-0 transition-all duration-300 z-20"
             style={{
               width: '260px',
               borderRight: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -383,10 +386,11 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 </span>
                 <button
                   onClick={() => setIsSidebarCollapsed(true)}
-                  className="p-1 rounded hover:bg-dark-slate transition-colors text-dim-steel hover:text-pure-frost cursor-pointer"
-                  title="Hide Left Panel"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono hover:bg-dark-slate transition-colors text-dim-steel hover:text-pure-frost cursor-pointer border border-transparent hover:border-subtle-wire"
+                  title="Hide Sidebar for Full Map"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Hide</span>
                 </button>
               </div>
 
@@ -395,10 +399,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* 1. Geospatial Radar */}
                 <button
                   onClick={() => handleTabClick('radar')}
-                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                     activeTab === 'radar'
                       ? 'shadow-sm'
-                      : 'hover:bg-dark-slate/50'
+                      : 'hover:bg-dark-slate/60'
                   }`}
                   style={{
                     backgroundColor:
@@ -430,10 +434,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* 2. Active Incidents */}
                 <button
                   onClick={() => handleTabClick('incidents')}
-                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                     activeTab === 'incidents'
                       ? 'shadow-sm'
-                      : 'hover:bg-dark-slate/50'
+                      : 'hover:bg-dark-slate/60'
                   }`}
                   style={{
                     backgroundColor:
@@ -472,10 +476,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* 3. e-FIR Escrow Queue (Active Highlight with Dark Slate and Amber Badge) */}
                 <button
                   onClick={() => handleTabClick('e-fir')}
-                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                     activeTab === 'e-fir'
                       ? 'shadow-sm'
-                      : 'hover:bg-dark-slate/50'
+                      : 'hover:bg-dark-slate/60'
                   }`}
                   style={{
                     backgroundColor:
@@ -513,8 +517,8 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* 4. NGO Escalations */}
                 <button
                   onClick={() => handleTabClick('ngo')}
-                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    activeTab === 'ngo' ? 'shadow-sm' : 'hover:bg-dark-slate/50'
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
+                    activeTab === 'ngo' ? 'shadow-sm' : 'hover:bg-dark-slate/60'
                   }`}
                   style={{
                     backgroundColor:
@@ -541,10 +545,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* 5. Evidence Verification */}
                 <button
                   onClick={() => handleTabClick('evidence')}
-                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                     activeTab === 'evidence'
                       ? 'shadow-sm'
-                      : 'hover:bg-dark-slate/50'
+                      : 'hover:bg-dark-slate/60'
                   }`}
                   style={{
                     backgroundColor:
@@ -575,10 +579,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* 6. Settings */}
                 <button
                   onClick={() => handleTabClick('settings')}
-                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer active:scale-[0.98] ${
                     activeTab === 'settings'
                       ? 'shadow-sm'
-                      : 'hover:bg-dark-slate/50'
+                      : 'hover:bg-dark-slate/60'
                   }`}
                   style={{
                     backgroundColor:
@@ -610,8 +614,8 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
             {/* Sidebar Bottom: Secondary Settings Toggle Card */}
             <div
-              onClick={() => setShowSettingsModal(true)}
-              className="p-3.5 rounded-xl flex flex-col gap-2.5 cursor-pointer hover:border-polygon-purple transition-colors"
+              onClick={() => handleTabClick('settings')}
+              className="p-3.5 rounded-xl flex flex-col gap-2.5 cursor-pointer hover:border-polygon-purple transition-colors shadow-sm"
               style={{
                 backgroundColor: colors.darkSlate, // #121824
                 border: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -667,9 +671,50 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
             className="relative flex flex-col h-full overflow-hidden transition-all duration-300"
             style={{
               width: showRightPanel ? (showSidebar ? '60%' : '75%') : '100%',
-              backgroundColor: '#070A0E',
+              backgroundColor: '#06090D',
             }}
           >
+            {/* PROMINENT TOP SEGMENTED CONTROL: INDIA MAP vs TACTICAL RADAR */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center p-1 rounded-xl shadow-2xl backdrop-blur-md"
+              style={{
+                backgroundColor: 'rgba(18, 24, 36, 0.92)',
+                border: `1px solid ${colors.subtleWire}`,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setMapMode('national');
+                  setSelectedGuardian(null);
+                }}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+                style={{
+                  backgroundColor:
+                    mapMode === 'national' ? colors.polygonPurple : 'transparent',
+                  color:
+                    mapMode === 'national' ? colors.pureFrost : colors.mutedSilver,
+                }}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>🇮🇳 India National GIS</span>
+              </button>
+              <button
+                onClick={() => {
+                  setMapMode('tactical');
+                  setSelectedGuardian(null);
+                }}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+                style={{
+                  backgroundColor:
+                    mapMode === 'tactical' ? colors.crimsonCoral : 'transparent',
+                  color:
+                    mapMode === 'tactical' ? colors.pureFrost : colors.mutedSilver,
+                }}
+              >
+                <Crosshair className="w-3.5 h-3.5" />
+                <span>🎯 Tactical 800m Radar</span>
+              </button>
+            </div>
+
             {/* Live Map Canvas / Realistic India GIS & Tactical PostGIS Radar */}
             <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
               <svg
@@ -701,7 +746,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                     <stop
                       offset="0%"
                       stopColor={colors.crimsonCoral}
-                      stopOpacity="0.22"
+                      stopOpacity="0.25"
                     />
                     <stop
                       offset="50%"
@@ -715,9 +760,9 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                     />
                   </radialGradient>
 
-                  {/* India Landmass Shadow */}
-                  <filter id="india-glow" x="-10%" y="-10%" width="120%" height="120%">
-                    <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor={colors.polygonPurple} floodOpacity="0.3" />
+                  {/* India Landmass Purple Glow */}
+                  <filter id="india-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor={colors.polygonPurple} floodOpacity="0.4" />
                   </filter>
                 </defs>
 
@@ -732,123 +777,146 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                   className="transition-transform duration-500 ease-out"
                 >
                   {/* --------------------------------------------------------- */}
-                  {/* LAYER A: REALISTIC INDIA NATIONAL GIS MAP VIEW */}
+                  {/* LAYER A: HIGH-FIDELITY REALISTIC INDIA NATIONAL GIS MAP */}
                   {/* --------------------------------------------------------- */}
                   {mapMode === 'national' ? (
                     <g className="animate-fadeIn">
-                      {/* Graticule Grid Lines (Lat / Long parallels & meridians) */}
+                      {/* Ocean Water Label Annotations */}
+                      <g fill={colors.dimSteel} fontSize="11" fontFamily="'JetBrains Mono', monospace" letterSpacing="0.2em" opacity="0.4">
+                        <text x="180" y="490">ARABIAN SEA</text>
+                        <text x="710" y="490">BAY OF BENGAL</text>
+                        <text x="440" y="720">INDIAN OCEAN</text>
+                      </g>
+
+                      {/* Graticule Lat / Long Coordinates Grid */}
                       <g stroke={colors.subtleWire} strokeWidth="0.75" strokeDasharray="3 6" strokeOpacity="0.5">
-                        {/* Parallels (Latitude) */}
                         <line x1="80" y1="120" x2="920" y2="120" />
                         <line x1="80" y1="240" x2="920" y2="240" />
                         <line x1="80" y1="380" x2="920" y2="380" />
                         <line x1="80" y1="520" x2="920" y2="520" />
                         <line x1="80" y1="640" x2="920" y2="640" />
 
-                        {/* Meridians (Longitude) */}
-                        <line x1="260" y1="60" x2="260" y2="700" />
-                        <line x1="430" y1="60" x2="430" y2="700" />
-                        <line x1="600" y1="60" x2="600" y2="700" />
-                        <line x1="770" y1="60" x2="770" y2="700" />
+                        <line x1="280" y1="60" x2="280" y2="700" />
+                        <line x1="460" y1="60" x2="460" y2="700" />
+                        <line x1="640" y1="60" x2="640" y2="700" />
+                        <line x1="800" y1="60" x2="800" y2="700" />
                       </g>
 
                       {/* Coordinate Labels */}
                       <g fill={colors.dimSteel} fontSize="9" fontFamily="'JetBrains Mono', monospace">
                         <text x="90" y="115">32°N (NORTH COMMAND)</text>
-                        <text x="90" y="235">28.6°N (NCR COMMAND)</text>
+                        <text x="90" y="235">28.6°N (NCR CAPITAL SECTOR)</text>
                         <text x="90" y="375">20°N (CENTRAL CORRIDOR)</text>
                         <text x="90" y="515">13°N (DECCAN PENINSULA)</text>
-                        <text x="435" y="80">77.2°E</text>
-                        <text x="605" y="80">88.3°E</text>
+                        <text x="465" y="80">77.2°E</text>
+                        <text x="645" y="80">88.3°E</text>
                       </g>
 
-                      {/* High-Fidelity India Sovereign Territory Vector Path */}
+                      {/* HIGH-PRECISION REALISTIC INDIA SOVEREIGN LANDMASS VECTOR */}
                       <path
-                        d="M430,70 L450,85 L480,105 L495,130 L475,150 L450,165 L465,190 L510,210 L555,220 L590,230 L605,215 L615,230 L655,230 L710,215 L770,200 L805,220 L790,255 L775,295 L760,335 L745,370 L730,365 L715,350 L680,355 L650,330 L615,355 L610,395 L585,455 L545,525 L515,590 L485,655 L465,705 L445,745 L435,765 L420,780 L410,775 L395,745 L380,695 L365,645 L350,595 L340,555 L330,495 L310,470 L265,480 L225,465 L210,430 L245,415 L215,405 L245,385 L205,375 L255,355 L240,315 L260,265 L285,215 L325,185 L340,150 L355,120 L375,90 Z"
-                        fill="#0E1624"
+                        d="M480,50 L510,70 L540,90 L560,115 L535,135 L510,150 L525,175 L565,190 L610,200 L645,210 L660,195 L670,210 L710,210 L760,195 L820,180 L855,200 L840,235 L825,275 L810,315 L795,350 L780,345 L765,330 L730,335 L700,310 L665,335 L660,375 L635,435 L595,505 L565,570 L535,635 L515,685 L495,725 L485,745 L470,760 L460,755 L445,725 L430,675 L415,625 L400,575 L390,535 L380,475 L360,450 L315,460 L275,445 L260,410 L295,395 L265,385 L295,365 L255,355 L305,335 L290,295 L310,245 L335,195 L375,165 L390,130 L405,100 L425,70 Z"
+                        fill="#10192A"
                         stroke={colors.polygonPurple}
                         strokeWidth="2.5"
-                        strokeOpacity="0.8"
+                        strokeOpacity="0.9"
                         filter="url(#india-glow)"
                       />
 
-                      {/* Internal Regional Zone Dividing Boundaries */}
-                      <g stroke={colors.subtleWire} strokeWidth="1" strokeDasharray="4 4" fill="none" opacity="0.7">
-                        {/* Northern Sector */}
-                        <path d="M285,215 Q360,230 430,260 T555,270" />
-                        {/* Western / Deccan Sector */}
-                        <path d="M310,470 Q370,460 450,470 T545,525" />
-                        {/* Peninsular South */}
-                        <path d="M350,595 Q410,590 485,600 T515,590" />
-                        {/* Eastern Gangetic & Coastal */}
-                        <path d="M430,260 Q480,340 585,455" />
-                        {/* Northeast Chicken's Neck Corridor */}
-                        <path d="M590,230 L615,355" />
+                      {/* Internal State and Zone Boundaries */}
+                      <g stroke={colors.subtleWire} strokeWidth="1" strokeDasharray="4 4" fill="none" opacity="0.8">
+                        {/* Northern Sector / Rajasthan Border */}
+                        <path d="M310,245 Q385,255 460,285 T565,295" />
+                        {/* Central / Deccan Boundary */}
+                        <path d="M360,450 Q425,440 500,455 T595,505" />
+                        {/* Peninsular South Boundary */}
+                        <path d="M400,575 Q460,565 535,575 T565,570" />
+                        {/* Gangetic Eastern Corridor */}
+                        <path d="M460,285 Q515,365 635,435" />
+                        {/* Northeast Siliguri Corridor */}
+                        <path d="M645,210 L665,335" />
                       </g>
 
-                      {/* Islands: Lakshadweep & Andaman Nicobar */}
-                      <g fill={colors.darkSlate} stroke={colors.subtleWire} strokeWidth="1.2">
-                        {/* Lakshadweep */}
-                        <circle cx="340" cy="710" r="3.5" />
-                        <circle cx="335" cy="728" r="3" />
-                        <circle cx="342" cy="745" r="3" />
-                        {/* Andaman & Nicobar */}
-                        <ellipse cx="770" cy="610" rx="3.5" ry="12" />
-                        <ellipse cx="780" cy="655" rx="3" ry="9" />
-                        <ellipse cx="790" cy="700" rx="3.5" ry="14" />
+                      {/* Lakshadweep Islands */}
+                      <g fill={colors.darkSlate} stroke={colors.subtleWire} strokeWidth="1">
+                        <circle cx="390" cy="690" r="4" />
+                        <circle cx="385" cy="710" r="3.5" />
+                        <circle cx="395" cy="730" r="3.5" />
                       </g>
 
-                      {/* National Strategic Hubs & Telemetry Nodes */}
+                      {/* Andaman & Nicobar Islands */}
+                      <g fill={colors.darkSlate} stroke={colors.subtleWire} strokeWidth="1">
+                        <ellipse cx="800" cy="590" rx="4" ry="14" />
+                        <ellipse cx="810" cy="640" rx="3.5" ry="10" />
+                        <ellipse cx="820" cy="690" rx="4" ry="16" />
+                      </g>
+
+                      {/* National Strategic Hubs & Telemetry Markers */}
                       {/* 1. New Delhi: Active Incident Center */}
                       <g
-                        transform="translate(430, 240)"
+                        transform="translate(460, 200)"
                         className="cursor-pointer"
                         onClick={() => setMapMode('tactical')}
                       >
-                        <circle r="36" fill={colors.crimsonCoral} fillOpacity="0.18" className="animate-ping" style={{ animationDuration: '2.5s' }} />
-                        <circle r="18" fill="none" stroke={colors.crimsonCoral} strokeWidth="2" strokeDasharray="4 4" />
-                        <circle r="8" fill={colors.crimsonCoral} />
-                        <circle r="3.5" fill={colors.pureFrost} />
-                        <text x="22" y="-6" fill={colors.crimsonCoral} fontSize="12" fontWeight="bold" fontFamily="'Plus Jakarta Sans', sans-serif">
+                        <circle r="40" fill={colors.crimsonCoral} fillOpacity="0.22" className="animate-ping" style={{ animationDuration: '2.5s' }} />
+                        <circle r="20" fill="none" stroke={colors.crimsonCoral} strokeWidth="2" strokeDasharray="4 4" />
+                        <circle r="9" fill={colors.crimsonCoral} />
+                        <circle r="4" fill={colors.pureFrost} />
+                        <text x="26" y="-6" fill={colors.crimsonCoral} fontSize="13" fontWeight="bold" fontFamily="'Plus Jakarta Sans', sans-serif">
                           NEW DELHI (ACTIVE INCIDENT)
                         </text>
-                        <text x="22" y="10" fill={colors.mutedSilver} fontSize="10" fontFamily="'JetBrains Mono', monospace">
-                          28.6139° N, 77.2090° E • 800m Radar Ready [Click to Zoom]
+                        <text x="26" y="10" fill={colors.mutedSilver} fontSize="10" fontFamily="'JetBrains Mono', monospace">
+                          28.6139° N, 77.2090° E • [Click to View 800m Tactical Radar]
                         </text>
                       </g>
 
                       {/* 2. Mumbai Western Command */}
-                      <g transform="translate(330, 495)">
-                        <circle r="7" fill={colors.emeraldShield} fillOpacity="0.25" />
-                        <circle r="4" fill={colors.emeraldShield} />
-                        <text x="12" y="4" fill={colors.pureFrost} fontSize="10" fontFamily="'Plus Jakarta Sans', sans-serif">
+                      <g
+                        transform="translate(388, 475)"
+                        className="cursor-pointer"
+                        onClick={() => setSelectedCityHub('Mumbai')}
+                      >
+                        <circle r="8" fill={colors.emeraldShield} fillOpacity="0.3" />
+                        <circle r="4.5" fill={colors.emeraldShield} />
+                        <text x="14" y="4" fill={colors.pureFrost} fontSize="10" fontWeight="bold" fontFamily="'Plus Jakarta Sans', sans-serif">
                           Mumbai Command
                         </text>
                       </g>
 
                       {/* 3. Bengaluru Southern Command */}
-                      <g transform="translate(420, 680)">
-                        <circle r="7" fill={colors.emeraldShield} fillOpacity="0.25" />
-                        <circle r="4" fill={colors.emeraldShield} />
-                        <text x="12" y="4" fill={colors.pureFrost} fontSize="10" fontFamily="'Plus Jakarta Sans', sans-serif">
+                      <g
+                        transform="translate(465, 650)"
+                        className="cursor-pointer"
+                        onClick={() => setSelectedCityHub('Bengaluru')}
+                      >
+                        <circle r="8" fill={colors.emeraldShield} fillOpacity="0.3" />
+                        <circle r="4.5" fill={colors.emeraldShield} />
+                        <text x="14" y="4" fill={colors.pureFrost} fontSize="10" fontWeight="bold" fontFamily="'Plus Jakarta Sans', sans-serif">
                           Bengaluru Command
                         </text>
                       </g>
 
                       {/* 4. Kolkata Eastern Command */}
-                      <g transform="translate(615, 355)">
-                        <circle r="7" fill={colors.emeraldShield} fillOpacity="0.25" />
-                        <circle r="4" fill={colors.emeraldShield} />
-                        <text x="12" y="4" fill={colors.pureFrost} fontSize="10" fontFamily="'Plus Jakarta Sans', sans-serif">
+                      <g
+                        transform="translate(665, 335)"
+                        className="cursor-pointer"
+                        onClick={() => setSelectedCityHub('Kolkata')}
+                      >
+                        <circle r="8" fill={colors.emeraldShield} fillOpacity="0.3" />
+                        <circle r="4.5" fill={colors.emeraldShield} />
+                        <text x="14" y="4" fill={colors.pureFrost} fontSize="10" fontWeight="bold" fontFamily="'Plus Jakarta Sans', sans-serif">
                           Kolkata Command
                         </text>
                       </g>
 
-                      {/* 5. Hyderabad Node */}
-                      <g transform="translate(445, 560)">
-                        <circle r="6" fill={colors.polygonPurple} fillOpacity="0.25" />
-                        <circle r="3.5" fill={colors.polygonPurple} />
-                        <text x="10" y="4" fill={colors.pureFrost} fontSize="9" fontFamily="'Plus Jakarta Sans', sans-serif">
+                      {/* 5. Hyderabad Central Node */}
+                      <g
+                        transform="translate(485, 540)"
+                        className="cursor-pointer"
+                        onClick={() => setSelectedCityHub('Hyderabad')}
+                      >
+                        <circle r="7" fill={colors.polygonPurple} fillOpacity="0.3" />
+                        <circle r="4" fill={colors.polygonPurple} />
+                        <text x="12" y="4" fill={colors.pureFrost} fontSize="9" fontFamily="'Plus Jakarta Sans', sans-serif">
                           Hyderabad Hub
                         </text>
                       </g>
@@ -858,11 +926,21 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                     /* LAYER B: TACTICAL 800M RADAR (CONNAUGHT PLACE, NEW DELHI) */
                     /* ------------------------------------------------------- */
                     <g transform="translate(500, 375)">
-                      {/* Realistic Delhi GIS Layers: Yamuna River Corridor */}
+                      {/* Subtle India Geographic Background Silhouette so India is never absent! */}
+                      <path
+                        d="M0,-240 L30,-180 L80,-140 L60,-60 L120,40 L60,160 L0,220 L-60,160 L-120,40 L-60,-60 L-80,-140 L-30,-180 Z"
+                        fill="#0B111A"
+                        stroke={colors.subtleWire}
+                        strokeWidth="1"
+                        strokeOpacity="0.4"
+                        transform="scale(1.4)"
+                      />
+
+                      {/* Delhi GIS Yamuna River Corridor */}
                       <path
                         d="M240,-350 Q180,-100 220,150 T200,380"
                         stroke="#1E3A8A"
-                        strokeWidth="14"
+                        strokeWidth="16"
                         fill="none"
                         strokeOpacity="0.3"
                       />
@@ -870,19 +948,15 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                         YAMUNA RIVER
                       </text>
 
-                      {/* Connaught Place Radial Avenues (Real Street Geometry) */}
+                      {/* Connaught Place Radial Avenues Grid */}
                       <g stroke={colors.subtleWire} strokeWidth="1.5" strokeOpacity="0.4">
-                        {/* Janpath Boulevard (North-South) */}
                         <line x1="0" y1="-320" x2="0" y2="320" />
-                        {/* Barakhamba Road (East-West) */}
                         <line x1="-320" y1="0" x2="320" y2="0" />
-                        {/* Kasturba Gandhi Marg (KG Marg) */}
                         <line x1="-220" y1="-220" x2="220" y2="220" />
-                        {/* Sansad Marg / Parliament Street */}
                         <line x1="-220" y1="220" x2="220" y2="-220" />
                       </g>
 
-                      {/* Connaught Place Concentric Rings (Inner, Middle, Outer Circus) */}
+                      {/* Connaught Place Concentric Rings */}
                       <circle
                         r="70"
                         fill="none"
@@ -937,23 +1011,23 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
                       {/* Central Rajiv Chowk Metro Interchange */}
                       <rect
-                        x="-12"
-                        y="-12"
-                        width="24"
-                        height="24"
+                        x="-14"
+                        y="-14"
+                        width="28"
+                        height="28"
                         fill={colors.midnightObsidian}
                         stroke={colors.electricAmber}
-                        strokeWidth="1"
+                        strokeWidth="1.5"
                         rx="4"
                       />
-                      <text x="-8" y="4" fill={colors.electricAmber} fontSize="9" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
+                      <text x="-9" y="5" fill={colors.electricAmber} fontSize="10" fontWeight="bold" fontFamily="'JetBrains Mono', monospace">
                         RC
                       </text>
 
                       {/* Active Incident Victim Center Marker */}
                       <g className="cursor-pointer">
                         <circle
-                          r="18"
+                          r="20"
                           fill={colors.crimsonCoral}
                           className="animate-ping"
                           style={{ animationDuration: '2s' }}
@@ -964,10 +1038,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                       </g>
 
                       {/* Community Guardians (Small Emerald Shield Dots with Click Interactivity) */}
-                      {/* Guardian 1: G-01 (180m Barakhamba Corridor) */}
+                      {/* Guardian 1 */}
                       <g
                         transform="translate(-80, -90)"
-                        className="cursor-pointer"
+                        className="cursor-pointer hover:opacity-80"
                         onClick={() => setSelectedGuardian('G-01')}
                       >
                         <circle
@@ -989,10 +1063,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                         </text>
                       </g>
 
-                      {/* Guardian 2: G-02 (290m Minto Road Corridor) */}
+                      {/* Guardian 2 */}
                       <g
                         transform="translate(120, -60)"
-                        className="cursor-pointer"
+                        className="cursor-pointer hover:opacity-80"
                         onClick={() => setSelectedGuardian('G-02')}
                       >
                         <circle
@@ -1014,10 +1088,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                         </text>
                       </g>
 
-                      {/* Guardian 3: G-03 (420m Janpath Metro Corridor) */}
+                      {/* Guardian 3 */}
                       <g
                         transform="translate(-130, 85)"
-                        className="cursor-pointer"
+                        className="cursor-pointer hover:opacity-80"
                         onClick={() => setSelectedGuardian('G-03')}
                       >
                         <circle
@@ -1039,10 +1113,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                         </text>
                       </g>
 
-                      {/* Guardian 4: G-04 (510m KG Marg Corridor) */}
+                      {/* Guardian 4 */}
                       <g
                         transform="translate(70, 140)"
-                        className="cursor-pointer"
+                        className="cursor-pointer hover:opacity-80"
                         onClick={() => setSelectedGuardian('G-04')}
                       >
                         <circle
@@ -1071,7 +1145,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               {/* Selected Guardian Quick Telemetry Card */}
               {selectedGuardian && (
                 <div
-                  className="absolute top-20 left-5 p-3 rounded-xl shadow-2xl z-20 flex flex-col gap-1.5 animate-fadeIn"
+                  className="absolute top-20 left-6 p-4 rounded-xl shadow-2xl z-40 flex flex-col gap-2 animate-fadeIn"
                   style={{
                     backgroundColor: colors.darkSlate,
                     border: `1px solid ${colors.emeraldShield}`,
@@ -1080,49 +1154,56 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                   <div className="flex items-center justify-between text-xs font-bold text-pure-frost">
                     <span className="flex items-center gap-1.5">
                       <UserCheck className="w-4 h-4 text-emerald-shield" style={{ color: colors.emeraldShield }} />
-                      Guardian {selectedGuardian} Details
+                      Guardian {selectedGuardian} Live Telemetry
                     </span>
                     <button
                       onClick={() => setSelectedGuardian(null)}
-                      className="text-dim-steel hover:text-pure-frost ml-3 text-xs"
+                      className="text-dim-steel hover:text-pure-frost ml-4 text-xs cursor-pointer"
                     >
                       ✕
                     </button>
                   </div>
                   <div className="text-[11px] font-mono" style={{ color: colors.mutedSilver }}>
-                    Status: <span className="text-emerald-shield font-bold" style={{ color: colors.emeraldShield }}>STANDBY READY</span> • Radius: 800m
+                    Status: <span className="text-emerald-shield font-bold" style={{ color: colors.emeraldShield }}>STANDBY ACTIVE</span> • 800m Buffer GiST
                   </div>
                   <div className="text-[10px] text-dim-steel font-mono">
-                    PostGIS GiST ST_DWithin matched • secp256r1 WebAuthn Verified
+                    Authenticated: W3C secp256r1 Passkey • Battery: 94% • Rail A/B Ready
                   </div>
+                  <button
+                    onClick={() => alert(`Dispatched priority proximity ping to Guardian ${selectedGuardian}!`)}
+                    className="mt-1 py-1 px-2 rounded bg-emerald-shield text-midnight-obsidian text-[11px] font-bold cursor-pointer hover:opacity-90"
+                    style={{ backgroundColor: colors.emeraldShield }}
+                  >
+                    Send Proximity Ping
+                  </button>
                 </div>
               )}
 
               {/* Floating Full View Banner */}
               {isFullMapView && (
                 <div
-                  className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-1.5 rounded-full shadow-2xl flex items-center gap-3 text-xs font-medium backdrop-blur-md animate-fadeIn"
+                  className="absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full shadow-2xl flex items-center gap-3 text-xs font-semibold backdrop-blur-md animate-fadeIn"
                   style={{
-                    backgroundColor: 'rgba(18, 24, 36, 0.9)',
+                    backgroundColor: 'rgba(18, 24, 36, 0.95)',
                     border: `1px solid ${colors.polygonPurple}`,
                     color: colors.pureFrost,
                   }}
                 >
                   <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: colors.polygonPurple }} />
-                  <span>FULL GIS MAP VIEW (100% CANVASS)</span>
+                  <span>FULL GIS MAP MODE (100% CANVASS)</span>
                   <button
                     onClick={() => setIsFullMapView(false)}
-                    className="p-1 hover:bg-midnight-obsidian rounded transition-colors text-dim-steel hover:text-pure-frost flex items-center gap-1 cursor-pointer"
+                    className="px-2 py-0.5 rounded bg-midnight-obsidian hover:bg-dark-slate transition-colors text-dim-steel hover:text-pure-frost flex items-center gap-1 cursor-pointer border border-subtle-wire"
                   >
                     <X className="w-3.5 h-3.5" />
-                    <span>Exit</span>
+                    <span>Exit Full View</span>
                   </button>
                 </div>
               )}
 
               {/* Live Zoom, Map Mode & Panel Control Toolbar (Top Right Overlay) */}
               <div
-                className="absolute top-5 right-5 flex flex-col gap-1.5 p-1 rounded-xl shadow-lg z-20"
+                className="absolute top-5 right-5 flex flex-col gap-1.5 p-1.5 rounded-xl shadow-xl z-30"
                 style={{
                   backgroundColor: colors.darkSlate, // #121824
                   border: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -1143,8 +1224,8 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                   }}
                   title={
                     mapMode === 'tactical'
-                      ? 'Switch to National India Map'
-                      : 'Switch to Tactical 800m Radar'
+                      ? 'Switch to National India GIS Map'
+                      : 'Switch to Tactical 800m New Delhi Radar'
                   }
                 >
                   <Globe className="w-4 h-4" />
@@ -1155,8 +1236,8 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* Zoom In (+) */}
                 <button
                   onClick={() => setZoomLevel((z) => Math.min(z + 1, 20))}
-                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors text-pure-frost cursor-pointer"
-                  title="Zoom In"
+                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors text-pure-frost cursor-pointer active:scale-95"
+                  title="Zoom In (+)"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -1166,8 +1247,8 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* Zoom Out (-) */}
                 <button
                   onClick={() => setZoomLevel((z) => Math.max(z - 1, 6))}
-                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors text-pure-frost cursor-pointer"
-                  title="Zoom Out"
+                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors text-pure-frost cursor-pointer active:scale-95"
+                  title="Zoom Out (-)"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
@@ -1178,12 +1259,11 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 <button
                   onClick={() => {
                     setZoomLevel(14);
-                    setMapMode('tactical');
                     setSelectedGuardian(null);
                   }}
-                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors cursor-pointer"
+                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors cursor-pointer active:scale-95"
                   style={{ color: colors.emeraldShield }}
-                  title="Reset to Active Incident"
+                  title="Reset Zoom & Center"
                 >
                   <Crosshair className="w-4 h-4" />
                 </button>
@@ -1193,7 +1273,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 {/* Full Screen Toggle */}
                 <button
                   onClick={() => setIsFullMapView(!isFullMapView)}
-                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors text-pure-frost cursor-pointer"
+                  className="p-2 rounded-lg hover:bg-midnight-obsidian transition-colors text-pure-frost cursor-pointer active:scale-95"
                   title={isFullMapView ? 'Exit Full View' : 'Maximize Map Full View'}
                 >
                   {isFullMapView ? (
@@ -1206,21 +1286,21 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
               {/* Geospatial Radar Header & Telemetry Overlay (Top Left) */}
               <div
-                className="absolute top-5 left-5 flex flex-col gap-1 p-3 rounded-xl shadow-md z-10 max-w-sm"
+                className="absolute top-5 left-5 flex flex-col gap-1.5 p-3.5 rounded-xl shadow-xl z-20 max-w-sm"
                 style={{
-                  backgroundColor: 'rgba(18, 24, 36, 0.88)',
-                  backdropFilter: 'blur(8px)',
+                  backgroundColor: 'rgba(18, 24, 36, 0.90)',
+                  backdropFilter: 'blur(10px)',
                   border: `1px solid ${colors.subtleWire}`,
                 }}
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className="w-2 h-2 rounded-full animate-ping"
+                    className="w-2.5 h-2.5 rounded-full animate-ping"
                     style={{ backgroundColor: colors.crimsonCoral }}
                   />
                   <span className="text-xs font-bold uppercase tracking-wider text-pure-frost">
                     {mapMode === 'national'
-                      ? 'National GIS Command (India)'
+                      ? 'India National GIS Radar'
                       : 'PostGIS Proximity Radar (800m)'}
                   </span>
                   <span
@@ -1243,10 +1323,10 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 >
                   28.6139° N, 77.2090° E • {activeCase.coarseLocation} • H3 Res-9: {activeCase.h3Index}
                 </div>
-                <div className="text-[10px] text-dim-steel flex items-center justify-between">
-                  <span>GiST ST_DWithin: 5 Active Guardians In Radius</span>
-                  <span className="font-mono text-emerald-shield" style={{ color: colors.emeraldShield }}>
-                    {mapMode === 'national' ? 'INDIA VIEW' : `ZOOM ${zoomLevel}x`}
+                <div className="text-[10px] text-dim-steel flex items-center justify-between pt-1 border-t border-subtle-wire">
+                  <span>GiST ST_DWithin: 5 Active Guardians</span>
+                  <span className="font-mono text-emerald-shield font-bold" style={{ color: colors.emeraldShield }}>
+                    {mapMode === 'national' ? 'INDIA NATIONAL VIEW' : `ZOOM ${zoomLevel}x`}
                   </span>
                 </div>
               </div>
@@ -1256,12 +1336,12 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               {/* Dark Slate surface, Subtle Wire border, Crimson Coral glowing indicator */}
               {/* --------------------------------------------------------------- */}
               <div
-                className="absolute bottom-5 left-5 right-5 p-4 rounded-xl shadow-2xl z-10 transition-all"
+                className="absolute bottom-5 left-5 right-5 p-4 rounded-xl shadow-2xl z-20 transition-all"
                 style={{
                   backgroundColor: colors.darkSlate, // #121824
                   border: `1px solid ${colors.subtleWire}`, // #222F3E
                   boxShadow:
-                    '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 24px rgba(255, 59, 92, 0.15)',
+                    '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 59, 92, 0.15)',
                 }}
                 data-testid="active-incident-overlay"
               >
@@ -1395,35 +1475,35 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 setIsRightPanelCollapsed(false);
                 setIsFullMapView(false);
               }}
-              className="absolute top-4 right-4 z-30 p-2 rounded-lg shadow-xl cursor-pointer transition-all flex items-center gap-1 text-xs font-semibold"
+              className="absolute top-5 right-5 z-40 px-3 py-2 rounded-xl shadow-2xl cursor-pointer transition-all flex items-center gap-2 text-xs font-bold border active:scale-95 hover:bg-dark-slate"
               style={{
                 backgroundColor: colors.darkSlate,
-                border: `1px solid ${colors.subtleWire}`,
+                borderColor: colors.electricAmber,
                 color: colors.pureFrost,
               }}
               title="Expand Details & Escrow Panel"
             >
-              <span>Escrow</span>
+              <span>Show Details</span>
               <ChevronLeft className="w-4 h-4 text-electric-amber" style={{ color: colors.electricAmber }} />
             </button>
           )}
 
           {/* ================================================================= */}
-          {/* RIGHT PANEL (40% width): Active Statutory Escalation & Escrow Monitor */}
+          {/* RIGHT PANEL: DYNAMIC VIEW (e-FIR Escrow / Incidents / NGO / Verification) */}
           {/* ================================================================= */}
           {showRightPanel && (
             <section
-              className="flex flex-col h-full overflow-y-auto p-6 gap-5 flex-shrink-0 transition-all duration-300"
+              className="flex flex-col h-full overflow-y-auto p-6 gap-5 flex-shrink-0 transition-all duration-300 z-20"
               style={{
                 width: showSidebar ? '40%' : '25%',
-                minWidth: '360px',
+                minWidth: '380px',
                 borderLeft: `1px solid ${colors.subtleWire}`, // #222F3E
                 backgroundColor: colors.midnightObsidian, // #0A0D12
               }}
               data-testid="right-detail-escrow-panel"
             >
               {/* Panel Headings: Microcopy & Item Heading with Collapse Button */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between pb-1 border-b border-subtle-wire">
                 <div className="flex flex-col gap-1">
                   <span
                     className="text-[10px] font-mono font-bold tracking-widest uppercase"
@@ -1446,10 +1526,11 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 </div>
                 <button
                   onClick={() => setIsRightPanelCollapsed(true)}
-                  className="p-1 rounded hover:bg-dark-slate transition-colors text-dim-steel hover:text-pure-frost cursor-pointer"
-                  title="Hide Right Panel for Full Map"
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-mono hover:bg-dark-slate transition-colors text-dim-steel hover:text-pure-frost cursor-pointer border border-transparent hover:border-subtle-wire"
+                  title="Hide Details for Full Map View"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <span>Hide</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
@@ -1469,7 +1550,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                       <div
                         key={inc.complaintId}
                         onClick={() => setSelectedComplaintId(inc.complaintId)}
-                        className="p-2.5 rounded-lg flex items-center justify-between cursor-pointer transition-all text-xs"
+                        className="p-2.5 rounded-lg flex items-center justify-between cursor-pointer transition-all text-xs hover:border-electric-amber"
                         style={{
                           backgroundColor: isSelected
                             ? colors.darkSlate
@@ -1533,7 +1614,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               {/* Countdown numbers 68:42:15 in extra large monospace/Sans */}
               {/* --------------------------------------------------------------- */}
               <div
-                className="p-5 rounded-xl flex flex-col gap-2 relative overflow-hidden"
+                className="p-5 rounded-xl flex flex-col gap-2 relative overflow-hidden shadow-lg"
                 style={{
                   backgroundColor: colors.darkSlate, // #121824
                   border: `1px solid ${colors.electricAmber}`, // #FF9F1C solid 1px border
@@ -1593,7 +1674,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               {/* • BNS Section 78 (Stalking) */}
               {/* --------------------------------------------------------------- */}
               <div
-                className="p-4 rounded-xl flex flex-col gap-2.5"
+                className="p-4 rounded-xl flex flex-col gap-2.5 shadow-md"
                 style={{
                   backgroundColor: colors.darkSlate, // #121824
                   border: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -1681,7 +1762,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               {/* ✓ AES-256-GCM, ✓ IPFS CIDv1: bafybeicv5..., ✓ Polygon L2 hash: 0x89d2c... */}
               {/* --------------------------------------------------------------- */}
               <div
-                className="p-4 rounded-xl flex flex-col gap-3"
+                className="p-4 rounded-xl flex flex-col gap-3 shadow-md"
                 style={{
                   backgroundColor: colors.darkSlate, // #121824
                   border: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -1701,7 +1782,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 <div className="flex flex-wrap gap-2.5">
                   {/* Badge 1: ✓ AES-256-GCM */}
                   <div
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider uppercase"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider uppercase shadow-sm"
                     style={{
                       backgroundColor: 'rgba(0, 208, 132, 0.1)',
                       border: `1px solid ${colors.emeraldShield}`, // #00D084
@@ -1716,7 +1797,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
                   {/* Badge 2: ✓ IPFS CIDv1: bafybeicv5... */}
                   <div
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider shadow-sm"
                     style={{
                       backgroundColor: colors.midnightObsidian,
                       border: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -1731,7 +1812,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
                   {/* Badge 3: ✓ Polygon L2 hash: 0x89d2c... */}
                   <div
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider"
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold tracking-wider shadow-sm"
                     style={{
                       backgroundColor: 'rgba(123, 63, 228, 0.12)',
                       border: `1px solid ${colors.polygonPurple}`, // #7B3FE4 border
@@ -1753,7 +1834,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               {/* Status items: Aadhaar e-Sign checking, BSA §63 Digital Evidence */}
               {/* --------------------------------------------------------------- */}
               <div
-                className="p-4 rounded-xl flex flex-col gap-3"
+                className="p-4 rounded-xl flex flex-col gap-3 shadow-md"
                 style={{
                   backgroundColor: colors.darkSlate, // #121824
                   border: `1px solid ${colors.subtleWire}`, // #222F3E
@@ -1847,7 +1928,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                     <button
                       data-testid={`btn-ack-${activeCase.complaintId}`}
                       onClick={() => handleAcknowledge(activeCase.complaintId)}
-                      className="w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90"
+                      className="w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95"
                       style={{
                         backgroundColor: colors.emeraldShield,
                         color: colors.midnightObsidian,
@@ -1858,7 +1939,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                     </button>
                   ) : (
                     <div
-                      className="w-full py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm"
                       style={{
                         backgroundColor: 'rgba(0, 208, 132, 0.15)',
                         border: `1px solid ${colors.emeraldShield}`,
@@ -1873,7 +1954,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                   <button
                     data-testid={`btn-verify-bsa-${activeCase.complaintId}`}
                     onClick={() => handleVerify(activeCase.bsa63CertId)}
-                    className="w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90"
+                    className="w-full py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 active:scale-95 shadow-sm"
                     style={{
                       backgroundColor: colors.midnightObsidian,
                       border: `1px solid ${colors.polygonPurple}`,
@@ -1889,7 +1970,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               {/* Verified Modal/Card if open */}
               {verifiedCert && (
                 <div
-                  className="p-3.5 rounded-xl flex flex-col gap-2 animate-fadeIn"
+                  className="p-3.5 rounded-xl flex flex-col gap-2 animate-fadeIn shadow-xl"
                   style={{
                     backgroundColor: 'rgba(0, 208, 132, 0.08)',
                     border: `1px solid ${colors.emeraldShield}`,
@@ -1925,8 +2006,8 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
       </div>
 
       {/* Settings Modal if Opened from Sidebar */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
+      {activeTab === 'settings' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm animate-fadeIn">
           <div
             className="w-full max-w-md p-6 rounded-2xl flex flex-col gap-4 shadow-2xl"
             style={{
@@ -1940,7 +2021,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
                 <h3 className="font-bold text-sm text-pure-frost">Institutional Hub Configuration</h3>
               </div>
               <button
-                onClick={() => setShowSettingsModal(false)}
+                onClick={() => setActiveTab('e-fir')}
                 className="text-dim-steel hover:text-pure-frost text-sm cursor-pointer"
               >
                 ✕
@@ -1965,8 +2046,8 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               </div>
             </div>
             <button
-              onClick={() => setShowSettingsModal(false)}
-              className="w-full py-2 rounded-lg text-xs font-bold text-midnight-obsidian cursor-pointer"
+              onClick={() => setActiveTab('e-fir')}
+              className="w-full py-2.5 rounded-lg text-xs font-bold text-midnight-obsidian cursor-pointer hover:opacity-90 active:scale-95"
               style={{ backgroundColor: colors.emeraldShield }}
             >
               Close Settings
