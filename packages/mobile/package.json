@@ -2,7 +2,6 @@
   "name": "@she-raksha/mobile",
   "version": "1.0.0",
   "description": "React Native Mobile App with Hardware Triggers, TFLite Voice Classifier, 5s Vault & Offline Sync",
-  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

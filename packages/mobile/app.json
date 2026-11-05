@@ -54,21 +54,6 @@
         "android.permission.VIBRATE",
         "android.permission.HIGH_SAMPLING_RATE_SENSORS"
       ]
-    },
-    "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "minSdkVersion": 26,
-            "targetSdkVersion": 34,
-            "compileSdkVersion": 34
-          },
-          "ios": {
-            "deploymentTarget": "15.1"
-          }
-        }
-      ]
-    ]
+    }
   }
 }

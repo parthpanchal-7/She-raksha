@@ -21,8 +21,7 @@ import {
 } from './types.js';
 import { quantizeCoordinates } from './spatialQuantizer.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const currentDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
 
 export class BystanderZKProver {
   private wasmPath: string;
@@ -36,13 +35,13 @@ export class BystanderZKProver {
     // Resolve monorepo paths with fallback search
     const possibleCircuitsDirs = [
       artifacts.wasmPath ? path.dirname(artifacts.wasmPath) : '',
-      path.resolve(__dirname, '../../assets/circuits'),
+      path.resolve(currentDir, '../../assets/circuits'),
       path.resolve(process.cwd(), 'packages/mobile/assets/circuits'),
       path.resolve(process.cwd(), 'assets/circuits'),
       path.resolve(process.cwd(), 'packages/circuits/build'),
       path.resolve(process.cwd(), '../circuits/build'),
-      path.resolve(__dirname, '../../../../circuits/build'),
-      path.resolve(__dirname, '../../../circuits/build'),
+      path.resolve(currentDir, '../../../../circuits/build'),
+      path.resolve(currentDir, '../../../circuits/build'),
     ].filter(Boolean);
 
     let foundWasm = '';
@@ -61,12 +60,33 @@ export class BystanderZKProver {
 
     if (!foundWasm || !foundZkey || !foundVKey) {
       for (const dir of possibleCircuitsDirs) {
-        const wasmCandidate = path.resolve(dir, 'AnonymousBystanderReportVerifier_v2_js/AnonymousBystanderReportVerifier_v2.wasm');
-        const zkeyCandidate = path.resolve(dir, 'circuit_final.zkey');
+        const wasmCandidates = [
+          path.resolve(dir, 'AnonymousBystanderReportVerifier_v2.wasm'),
+          path.resolve(dir, 'AnonymousBystanderReportVerifier_v2_js/AnonymousBystanderReportVerifier_v2.wasm'),
+        ];
+        const zkeyCandidates = [
+          path.resolve(dir, 'AnonymousBystanderReportVerifier_v2_final.zkey'),
+          path.resolve(dir, 'circuit_final.zkey'),
+          path.resolve(dir, 'circuit.zkey'),
+        ];
         const vKeyCandidate = path.resolve(dir, 'verification_key.json');
 
-        if (!foundWasm && fs.existsSync(wasmCandidate)) foundWasm = wasmCandidate;
-        if (!foundZkey && fs.existsSync(zkeyCandidate)) foundZkey = zkeyCandidate;
+        if (!foundWasm) {
+          for (const w of wasmCandidates) {
+            if (fs.existsSync(w)) {
+              foundWasm = w;
+              break;
+            }
+          }
+        }
+        if (!foundZkey) {
+          for (const z of zkeyCandidates) {
+            if (fs.existsSync(z)) {
+              foundZkey = z;
+              break;
+            }
+          }
+        }
         if (!foundVKey && fs.existsSync(vKeyCandidate)) foundVKey = vKeyCandidate;
       }
     }
