@@ -29,6 +29,8 @@ export interface SurvivorCommandCenterProps {
   onTriggerSOS?: () => void;
   multiRailStatus?: MultiRailStatus;
   apiBaseUrl?: string;
+  wsUrl?: string;
+  web3AuthSessionToken?: string;
   onIncidentDispatched?: (incidentId: string) => void;
   onEFIRGenerated?: (efirId: string) => void;
 }
@@ -38,6 +40,8 @@ export const SurvivorCommandCenter: React.FC<SurvivorCommandCenterProps> = ({
   onTriggerSOS,
   multiRailStatus,
   apiBaseUrl,
+  wsUrl,
+  web3AuthSessionToken,
   onIncidentDispatched,
   onEFIRGenerated,
 }) => {

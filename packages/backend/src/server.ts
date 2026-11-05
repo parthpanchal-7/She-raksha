@@ -78,10 +78,11 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
     timestamp: new Date().toISOString(),
   }));
 
-  // 4. WebSocket SOS Hub Route (Rail A)
+  // 4. WebSocket SOS Hub Route (Central API Gateway & Hub for Mobile Rail A, Survivor PWA, and Institutional Sync)
   app.get('/ws/sos', { websocket: true }, (socket, req) => {
     sosHub.handleConnection(socket);
   });
+
 
   // 5. REST Ingestion: Twilio SMPP SMS Webhook (Rail B)
   app.post('/webhooks/twilio/sms', async (req, reply) => {

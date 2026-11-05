@@ -9,4 +9,11 @@ export { ComplaintEscrowService } from './complaintEscrow.js';
 export { ZKReportVerifierService, type Groth16ProofTuple } from './zkReportVerifier.js';
 export { GuardianRegistryService } from './guardianRegistry.js';
 export { AccessGrantService, GranteeRole } from './accessGrant.js';
-
+export {
+  PolygonL2EventListener,
+  type AnonymousReportEventPayload,
+  type EscrowEscalatedEventPayload,
+  type AnonymousReportCallback,
+  type EscrowEscalatedCallback,
+  type PolygonL2EventListenerOptions,
+} from './polygonL2EventListener.js';

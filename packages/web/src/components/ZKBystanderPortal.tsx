@@ -165,6 +165,28 @@ export const ZKBystanderPortal: React.FC<ZKBystanderPortalProps> = ({
         setTxHash(result.txHash);
         setProvingDuration(result.provingMs);
         setProofSuccess(result);
+
+        // Broadcast ANONYMOUS_REPORT_LOGGED event to Fastify WebSocket Hub
+        if (typeof window !== 'undefined' && typeof WebSocket !== 'undefined') {
+          try {
+            const wsTarget = process.env.NEXT_PUBLIC_BACKEND_WSS_URL || 'ws://localhost:8080/ws/sos';
+            const ws = new WebSocket(wsTarget);
+            ws.onopen = () => {
+              ws.send(
+                JSON.stringify({
+                  type: 'ANONYMOUS_REPORT_LOGGED',
+                  nullifier: result.nullifier,
+                  geohashBucket: roughGeohash,
+                  timestampBucket: Math.floor(Date.now() / 1000),
+                  submissionId: 'zk-' + result.nullifier.slice(2, 10),
+                })
+              );
+              setTimeout(() => ws.close(), 1000);
+            };
+          } catch {
+            // Handled silently
+          }
+        }
       }
     } catch (err: any) {
       console.error('Proof generation error:', err);

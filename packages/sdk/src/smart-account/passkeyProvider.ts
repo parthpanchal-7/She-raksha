@@ -5,6 +5,7 @@
  *  - W3C WebAuthn Passkeys (secp256r1 / P-256) via FaceID / Fingerprint
  *  - Web3Auth MPC key-share session management
  *  - Guarantees 100% keyless onboarding with ZERO mnemonic seed phrases
+ *  - Guarantees identical Smart Account address across Mobile and Survivor PWA via universal session token
  */
 
 import {
@@ -60,6 +61,7 @@ export class PasskeyWebAuthnProvider {
 
   /**
    * Initializes a Web3Auth MPC session without exposing seed phrases (FR-ID-002).
+   * Universally synchronizes the ERC-4337 Smart Account across Mobile and Survivor PWA.
    *
    * @param web3AuthToken - OAuth JWT or Web3Auth session token
    * @param appPubKey - Web3Auth app public key
@@ -72,15 +74,34 @@ export class PasskeyWebAuthnProvider {
     const seed = web3AuthToken || credential.credentialId;
     const did = `did:key:z${Buffer.from(seed).toString('hex').slice(0, 48)}`;
 
+    // If web3AuthToken is provided, derive deterministic signer address universally
+    // to guarantee identical smart account across all client platforms (Mobile, PWA)
+    let signerAddress: Address;
+    if (web3AuthToken) {
+      const derivedHash = keccak256(
+        encodePacked(['string', 'string'], ['she-raksha-web3auth-signer:', web3AuthToken])
+      );
+      signerAddress = (`0x${derivedHash.slice(26)}`) as Address;
+      this.currentCredential = {
+        credentialId: Buffer.from(seed).toString('base64url'),
+        publicKeyHex: `0x04${derivedHash.slice(2)}` as Hex,
+        signerAddress,
+        algorithm: 'ES256',
+        biometricType: 'Passkey',
+      };
+    } else {
+      signerAddress = credential.signerAddress;
+    }
+
     // Compute deterministic ERC-4337 Smart Account address
     const smartAccountAddress = PasskeyWebAuthnProvider.computeSmartAccountAddress(
-      credential.signerAddress
+      signerAddress
     );
 
     const session: Web3AuthMPCSession = {
       did,
       smartAccountAddress,
-      ownerSignerAddress: credential.signerAddress,
+      ownerSignerAddress: signerAddress,
       authenticatedAt: new Date().toISOString(),
     };
 
@@ -143,4 +164,3 @@ export class PasskeyWebAuthnProvider {
     return this.currentSession;
   }
 }
-

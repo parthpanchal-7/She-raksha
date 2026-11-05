@@ -25,9 +25,12 @@ import {
 } from '../types.js';
 import { ComplaintEscrowService } from '@she-raksha/sdk';
 
+import { SOSHub, defaultSOSHub } from '../sos/sosHub.js';
+
 export interface BNSSWorkerOptions {
   store?: MemoryStore;
   escrowService?: ComplaintEscrowService;
+  sosHub?: SOSHub;
   ngoWebhookUrl?: string;
   spPortalUrl?: string;
 }
@@ -35,6 +38,7 @@ export interface BNSSWorkerOptions {
 export class BNSSCountdownWorker {
   private store: MemoryStore;
   private escrowService?: ComplaintEscrowService;
+  private sosHub?: SOSHub;
   private ngoWebhookUrl: string;
   private spPortalUrl: string;
   private workerInterval?: NodeJS.Timeout;
@@ -42,6 +46,7 @@ export class BNSSCountdownWorker {
   constructor(options: BNSSWorkerOptions = {}) {
     this.store = options.store || defaultStore;
     this.escrowService = options.escrowService;
+    this.sosHub = options.sosHub || defaultSOSHub;
     this.ngoWebhookUrl = options.ngoWebhookUrl || 'https://ngo-legal-aid.org/webhooks/early-warning';
     this.spPortalUrl = options.spPortalUrl || 'https://sp-cctns.police.gov.in/api/v1/escalations';
   }
@@ -138,6 +143,16 @@ export class BNSSCountdownWorker {
           } catch {
             // Ignore format issues in mock tests
           }
+        }
+
+        // Broadcast real-time EscrowEscalated event to connected institutional dashboards
+        if (this.sosHub) {
+          this.sosHub.broadcastEscrowEscalated({
+            complaintId: efir.escrowContractId ? Number(efir.escrowContractId) : 101,
+            timestamp: escalationTimeIso,
+            dossierId: dossier.dossierId,
+            efirId: efir.efirId,
+          });
         }
 
         // Record dispatch log

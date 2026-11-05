@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import { colors } from '@she-raksha/design-tokens';
 import { Geospatial3DGisGlobe } from './Geospatial3DGisGlobe.js';
+import { PolygonL2EventListener } from '@she-raksha/sdk';
 
 export interface IncidentEscrowItem {
   complaintId: number;
@@ -311,6 +312,54 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
       }
     };
   }, [wsUrl, walletAddress, role]);
+
+  // ---------------------------------------------------------------------------
+  // Polygon L2 On-Chain Real-Time State Synchronization (Alchemy / Infura WSS)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    let unwatchReport: (() => void) | undefined;
+    let unwatchEscrow: (() => void) | undefined;
+
+    try {
+      const listener = new PolygonL2EventListener({
+        zkReportVerifierAddress: '0xaB736738d23b8194140E05e696fC77F305551b9e',
+        complaintEscrowAddress: '0xC1abbA2c778d2B540a87f2fccA667783CFe7c9Fb',
+      });
+
+      unwatchReport = listener.onAnonymousReportLogged((report) => {
+        setDynamicIncidents((prev) => [
+          {
+            incidentId: 'zk-' + (report.nullifier ? report.nullifier.slice(0, 8) : 'report'),
+            latitude: 28.6139,
+            longitude: 77.209,
+            severity: 'HIGH',
+            coarseLocation: 'Geohash: ' + (report.geohashBucket || 'ttnf7z'),
+            triggerMode: 'ANONYMOUS_ZK_REPORT',
+          },
+          ...prev,
+        ]);
+      });
+
+      unwatchEscrow = listener.onEscrowEscalated((escrow) => {
+        setIncidents((prev) =>
+          prev.map((inc) =>
+            inc.complaintId === Number(escrow.complaintId) || String(inc.complaintId) === String(escrow.complaintId)
+              ? { ...inc, isEscalatedToSP: true, bnsSection: inc.bnsSection + ' [SP ALERT - BNSS §173(4)]' }
+              : inc
+          )
+        );
+      });
+
+      listener.startListening().catch(() => {});
+    } catch {
+      // Offline fallback in pure mock browser environment
+    }
+
+    return () => {
+      if (unwatchReport) unwatchReport();
+      if (unwatchEscrow) unwatchEscrow();
+    };
+  }, []);
 
   const handleAcknowledge = (id: number) => {
     setIncidents((prev) =>

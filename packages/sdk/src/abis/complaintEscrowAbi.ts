@@ -172,6 +172,14 @@ export const complaintEscrowAbi = [
   },
   {
     type: 'event',
+    name: 'EscrowEscalated',
+    inputs: [
+      { name: 'complaintId', type: 'uint256', indexed: true },
+      { name: 'timestamp', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
     name: 'EarlyWarning48HrTriggered',
     inputs: [
       { name: 'complaintId', type: 'uint256', indexed: true },

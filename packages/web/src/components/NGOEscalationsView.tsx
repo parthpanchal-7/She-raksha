@@ -34,6 +34,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { colors } from '@she-raksha/design-tokens';
+import { PolygonL2EventListener } from '@she-raksha/sdk';
 import {
   MOCK_ESCROW_WARNINGS,
   MOCK_ZK_REPORTS,
@@ -43,11 +44,65 @@ import {
 
 export interface NGOEscalationsViewProps {
   onDispatchDossier?: (id: string) => void;
+  customWarnings?: MockEscrowWarningItem[];
+  customZkReports?: MockZKReportItem[];
 }
 
-export const NGOEscalationsView: React.FC<NGOEscalationsViewProps> = ({ onDispatchDossier }) => {
+export const NGOEscalationsView: React.FC<NGOEscalationsViewProps> = ({
+  onDispatchDossier,
+  customWarnings,
+  customZkReports,
+}) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'warnings' | 'zk'>('all');
   const [dispatchedIds, setDispatchedIds] = useState<Record<string, boolean>>({});
+  const [warningsList, setWarningsList] = useState<MockEscrowWarningItem[]>(customWarnings || MOCK_ESCROW_WARNINGS);
+  const [zkReportsList, setZkReportsList] = useState<MockZKReportItem[]>(customZkReports || MOCK_ZK_REPORTS);
+
+  React.useEffect(() => {
+    let unwatchReport: (() => void) | undefined;
+    let unwatchEscrow: (() => void) | undefined;
+
+    try {
+      const listener = new PolygonL2EventListener({
+        zkReportVerifierAddress: '0xaB736738d23b8194140E05e696fC77F305551b9e',
+        complaintEscrowAddress: '0xC1abbA2c778d2B540a87f2fccA667783CFe7c9Fb',
+      });
+
+      unwatchReport = listener.onAnonymousReportLogged((report) => {
+        const newZk: MockZKReportItem = {
+          submissionId: 'sub-zk-' + (report.nullifier ? report.nullifier.slice(0, 8) : 'report'),
+          submittedAt: 'Just now (On-Chain)',
+          poseidonNullifierHash: report.nullifier,
+          geohashBucket: String(report.geohashBucket || 'ttnf7z'),
+          incidentCategoryCode: 'BNS_78',
+          categoryLabel: 'BNS §78 (Stalking & Surveillance)',
+          timestampBucketEpochHour: Math.floor(Date.now() / 3600000),
+          onChainTxHash: '0x' + '7a'.repeat(32),
+          isNullifierVerified: true,
+          zkeyVersion: 'v1.0.0-amoy',
+        };
+        setZkReportsList((prev) => [newZk, ...prev]);
+      });
+
+      unwatchEscrow = listener.onEscrowEscalated((escrow) => {
+        setWarningsList((prev) =>
+          prev.map((w) => ({
+            ...w,
+            statutoryReason: '72-Hour Statutory Expiry under BNSS §173(4). SP Alert Active.',
+          }))
+        );
+      });
+
+      listener.startListening().catch(() => {});
+    } catch {
+      // Offline fallback
+    }
+
+    return () => {
+      if (unwatchReport) unwatchReport();
+      if (unwatchEscrow) unwatchEscrow();
+    };
+  }, []);
 
   const handleDispatch = (id: string) => {
     setDispatchedIds((prev) => ({ ...prev, [id]: true }));
@@ -101,7 +156,7 @@ export const NGOEscalationsView: React.FC<NGOEscalationsViewProps> = ({ onDispat
                 color: activeFilter === 'all' ? colors.pureFrost : colors.mutedSilver,
               }}
             >
-              All Dossiers ({MOCK_ESCROW_WARNINGS.length + MOCK_ZK_REPORTS.length})
+              All Dossiers ({warningsList.length + zkReportsList.length})
             </button>
             <button
               onClick={() => setActiveFilter('warnings')}
@@ -112,7 +167,7 @@ export const NGOEscalationsView: React.FC<NGOEscalationsViewProps> = ({ onDispat
                 color: activeFilter === 'warnings' ? colors.electricAmber : colors.mutedSilver,
               }}
             >
-              48h Warnings ({MOCK_ESCROW_WARNINGS.length})
+              48h Warnings ({warningsList.length})
             </button>
             <button
               onClick={() => setActiveFilter('zk')}
@@ -123,7 +178,7 @@ export const NGOEscalationsView: React.FC<NGOEscalationsViewProps> = ({ onDispat
                 color: activeFilter === 'zk' ? colors.polygonPurple : colors.mutedSilver,
               }}
             >
-              Anonymous ZK ({MOCK_ZK_REPORTS.length})
+              Anonymous ZK ({zkReportsList.length})
             </button>
           </div>
         </div>
@@ -135,7 +190,7 @@ export const NGOEscalationsView: React.FC<NGOEscalationsViewProps> = ({ onDispat
         {/* TYPE A DOSSIERS: 48-HOUR ESCROW WARNINGS */}
         {/* ================================================================= */}
         {(activeFilter === 'all' || activeFilter === 'warnings') &&
-          MOCK_ESCROW_WARNINGS.map((warn) => (
+          warningsList.map((warn) => (
             <div
               key={warn.id}
               className="p-5 rounded-xl border flex flex-col gap-3 transition-all"
@@ -250,7 +305,7 @@ export const NGOEscalationsView: React.FC<NGOEscalationsViewProps> = ({ onDispat
         {/* TYPE B DOSSIERS: ANONYMOUS ZK REPORTS */}
         {/* ================================================================= */}
         {(activeFilter === 'all' || activeFilter === 'zk') &&
-          MOCK_ZK_REPORTS.map((zk) => (
+          zkReportsList.map((zk) => (
             <div
               key={zk.submissionId}
               className="p-5 rounded-xl border flex flex-col gap-3.5 transition-all"

@@ -260,5 +260,21 @@ export interface NewEFIREscrowEvent {
   status: EFIRStatus | 'RECORDED' | 'ACKNOWLEDGED' | 'ESCALATED' | 'TRANSCRIBED';
 }
 
+export interface AnonymousReportLoggedEvent {
+  type: 'ANONYMOUS_REPORT_LOGGED';
+  nullifier: string;
+  geohashBucket: string;
+  timestampBucket: string | number;
+  submissionId?: string;
+  timestamp: string;
+}
 
-
+export interface EscrowEscalatedEvent {
+  type: 'ESCROW_ESCALATED';
+  complaintId: number | string;
+  status: 'ESCALATED_SP';
+  spAlertActive: boolean;
+  timestamp: string;
+  dossierId?: string;
+  efirId?: string;
+}

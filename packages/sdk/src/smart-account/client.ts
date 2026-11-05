@@ -3,6 +3,7 @@
  *
  * Implements FR-ID-001, FR-ID-002, and FR-ID-003:
  *  - Keyless onboarding via Web3Auth MPC & W3C WebAuthn Passkeys (FaceID/Fingerprint)
+ *  - Universal account handshake across Mobile App & Survivor PWA using Web3Auth session tokens
  *  - Gasless transaction sponsorship via SheRakshaPaymaster.sol
  *  - Automatic UserOperation construction, signing, and submission via Biconomy / ZeroDev Bundler
  */
@@ -45,6 +46,7 @@ export class SmartAccountClient {
   private userOpBuilder?: UserOpBuilder;
   private smartAccountAddress?: Address;
   private currentNonce: bigint = 0n;
+  private activeSessionToken?: string;
 
   constructor(options: SmartAccountClientConfig = {}) {
     this.config = options.networkConfig || POLYGON_AMOY_CONFIG;
@@ -62,10 +64,21 @@ export class SmartAccountClient {
   /**
    * Initializes the Smart Account using FaceID / TouchID / Passkey or Web3Auth MPC session.
    * Onboards the user with zero seed phrases (FR-ID-001, FR-ID-002).
+   *
+   * @param username - User identifier / alias
+   * @param web3AuthSessionToken - Universal session token shared across Mobile App and Survivor PWA
    */
-  public async init(username: string = 'she-raksha-user'): Promise<Address> {
-    const cred = await this.passkeyProvider.registerWithPasskey(username);
-    const session = await this.passkeyProvider.initWeb3AuthMPCSession();
+  public async init(
+    username: string = 'she-raksha-user',
+    web3AuthSessionToken?: string
+  ): Promise<Address> {
+    if (web3AuthSessionToken) {
+      this.activeSessionToken = web3AuthSessionToken;
+    }
+
+    const session = await this.passkeyProvider.initWeb3AuthMPCSession(
+      this.activeSessionToken
+    );
 
     this.smartAccountAddress = session.smartAccountAddress;
 
@@ -81,6 +94,19 @@ export class SmartAccountClient {
   }
 
   /**
+   * Universal Web3Auth Handshake: Initializes or syncs the smart account from a universal session token.
+   * Ensures that a user filing an e-FIR on the Survivor PWA shares the identical ERC-4337 Smart Account
+   * and Paymaster sponsorship as their Mobile App session.
+   */
+  public async initWithSessionToken(
+    web3AuthSessionToken: string,
+    username: string = 'she-raksha-user'
+  ): Promise<Address> {
+    this.activeSessionToken = web3AuthSessionToken;
+    return this.init(username, web3AuthSessionToken);
+  }
+
+  /**
    * Returns the current smart account contract address.
    */
   public getSmartAccountAddress(): Address {
@@ -88,6 +114,20 @@ export class SmartAccountClient {
       throw new Error('SmartAccountClient not initialized. Call init() first.');
     }
     return this.smartAccountAddress;
+  }
+
+  /**
+   * Returns the currently active Web3Auth universal session token.
+   */
+  public getActiveSessionToken(): string | undefined {
+    return this.activeSessionToken;
+  }
+
+  /**
+   * Returns the configured Paymaster address.
+   */
+  public getPaymasterAddress(): Address {
+    return this.config.contracts.paymaster;
   }
 
   /**
@@ -178,4 +218,3 @@ export class SmartAccountClient {
     };
   }
 }
-
