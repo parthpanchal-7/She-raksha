@@ -32,10 +32,13 @@ export class IMUAccelerometerListener {
   private impactTimestamp: number = 0;
 
   constructor(customConfig?: Partial<IMUConfig>) {
+    const envShake = process.env.EXPO_PUBLIC_SHAKE_THRESHOLD_G || process.env.SHAKE_THRESHOLD_G;
+    const envFall = process.env.EXPO_PUBLIC_FALL_IMPACT_THRESHOLD_G || process.env.FALL_IMPACT_THRESHOLD_G;
+
     this.config = {
       samplingRateHz: 50, // >= 50Hz required
-      distressShakeThresholdG: SHAKE_THRESHOLD_DISTRESS_G, // 2.5g canonical default
-      fallImpactThresholdG: SHAKE_THRESHOLD_FALL_G, // 3.8g canonical default
+      distressShakeThresholdG: customConfig?.distressShakeThresholdG ?? (envShake ? Number(envShake) : SHAKE_THRESHOLD_DISTRESS_G), // 2.5g canonical default
+      fallImpactThresholdG: customConfig?.fallImpactThresholdG ?? (envFall ? Number(envFall) : SHAKE_THRESHOLD_FALL_G), // 3.8g canonical default
       freeFallThresholdG: 0.4, // < 0.4g indicates free-fall
       shakeWindowMs: 1200, // 1.2s window
       requiredReversals: 3, // At least 3 directional reversals

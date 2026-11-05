@@ -92,6 +92,9 @@ export class EvidenceVaultManager {
     } finally {
       // 2. Mandatory Zero-Plaintext RAM Sanitization (NFR-SEC-002)
       if (this.config.wipeRawBuffersImmediately ?? true) {
+        if (typeof rawBuffer.fill === 'function') {
+          rawBuffer.fill(0);
+        }
         sanitizeBuffer(rawBuffer);
       }
     }

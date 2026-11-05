@@ -11,6 +11,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildPoseidon } from 'circomlibjs';
 import * as snarkjs from 'snarkjs';
 import {
@@ -19,6 +20,9 @@ import {
   type ZKProverArtifacts,
 } from './types.js';
 import { quantizeCoordinates } from './spatialQuantizer.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class BystanderZKProver {
   private wasmPath: string;
@@ -32,6 +36,9 @@ export class BystanderZKProver {
     // Resolve monorepo paths with fallback search
     const possibleCircuitsDirs = [
       artifacts.wasmPath ? path.dirname(artifacts.wasmPath) : '',
+      path.resolve(__dirname, '../../assets/circuits'),
+      path.resolve(process.cwd(), 'packages/mobile/assets/circuits'),
+      path.resolve(process.cwd(), 'assets/circuits'),
       path.resolve(process.cwd(), 'packages/circuits/build'),
       path.resolve(process.cwd(), '../circuits/build'),
       path.resolve(__dirname, '../../../../circuits/build'),

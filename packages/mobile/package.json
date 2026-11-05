@@ -2,6 +2,7 @@
   "name": "@she-raksha/mobile",
   "version": "1.0.0",
   "description": "React Native Mobile App with Hardware Triggers, TFLite Voice Classifier, 5s Vault & Offline Sync",
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -14,7 +15,10 @@
   "scripts": {
     "build": "tsc",
     "test": "node --test --test-force-exit dist/tests/*.test.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:apk:local": "eas build --platform android --profile preview --local",
+    "package:apk": "node scripts/package-apk.js"
   },
   "dependencies": {
     "@she-raksha/circuits": "workspace:*",

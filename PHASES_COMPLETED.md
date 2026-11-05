@@ -9,7 +9,7 @@
 
 | Total Phases | Completed | In Progress | Pending | Health / Quality Gate |
 | :---: | :---: | :---: | :---: | :---: |
-| **17** (12 Dev + 5 Deploy) | **15** | **0** | **2** | **PASSING (All 12 Dev Phases + Phases D1, D2, D3 Verified)** |
+| **17** (12 Dev + 5 Deploy) | **16** | **0** | **1** | **PASSING (All 12 Dev Phases + Phases D1, D2, D3, D4 Verified)** |
 
 ---
 
@@ -39,7 +39,7 @@
 | **Phase D1: DevOps Architecture & Multi-Tier Config** | All 9 packages, root `.env` | DevOps blueprint & templates | `COMPLETED` | `2026-11-03T04:53:37+05:30` | `5f7509a` | `docs/DEPLOYMENT_BLUEPRINT.md`, root `.env.example`, 5 tier `.env.example`s, Dockerfile, docker-compose.yml, vercel.json, next.config.mjs, eas.json, ci.yml. 18/18 turbo tests passing. |
 | **Phase D2: Polygon L2 Deployment & Paymaster Staking** | `packages/contracts`, `packages/sdk` | Polygon Amoy / Polygonscan | `COMPLETED` | `2026-11-05T01:22:10+05:30` | `Pending` | All 8 contracts deployed to Polygon Amoy (`Groth16Verifier`, `ZKReportVerifier`, `EvidenceRegistry`, `SOSLog`, `GuardianRegistry`, `ComplaintEscrow`, `AccessGrant`, `SheRakshaPaymaster`). Batch whitelisting executed. Live gasless smoke test passed: 0 POL deducted from user smart account. `packages/sdk/src/deployments/amoy.json` exported. |
 | **Phase D3: PostGIS Provisioning & Backend Deployment** | `packages/schemas`, `packages/backend` | Supabase / Docker / Railway | `COMPLETED` | `2026-11-05T01:22:30+05:30` | `Pending` | Supabase PostgreSQL 17 + PostGIS 3.3.7 initialized. Applied `001_init_core_schema.sql` (8 tables + GiST spatial indexes on `guardians.geom` and `sos_incidents.geom`). Containerized Fastify + BullMQ configs (`Dockerfile`, `railway.toml`, `fly.toml`). Live health checks verified: `/health` (UP), `/ready` (READY), `/ws/sos` (Duplex WSS), `/api/v1/efir/classify-bns` (BNS §78). |
-| **Phase D4: Next.js 14 Vercel & Mobile EAS Build** | `packages/web`, `packages/mobile` | Vercel / Expo EAS | `PENDING` | — | — | Vercel deployment with COOP/COEP WASM headers, EAS Android preview `.apk` build bundling TFLite model and Circom `.zkey`. |
+| **Phase D4: Next.js 14 Vercel & Mobile EAS Build** | `packages/web`, `packages/mobile` | Vercel / Expo EAS | `COMPLETED` | `2026-11-05T15:25:00+05:30` | `642c15b` | Next.js 14 ZK Bystander Portal upgraded with Groth16 WebWorker client & JetBrains Mono / Emerald Shield badges (18/18 web tests passing); EAS Android preview APK configured with native `AndroidManifest.xml` (all 14 emergency foreground service & sensor permissions), quantized TFLite distress audio model (`distress_classifier_quant.tflite`), Circom 2.1 Groth16 `.zkey` bundled, 2.5g/3.8g IMU dynamic thresholds, and RAM zero-fill sanitization. Standalone package `She-Raksha-preview.apk` generated (54/54 mobile tests passing). |
 | **Phase D5: Full NFR Audit, Fault Injection & Final Sign-Off** | Full Monorepo & Live Testnets | Automated Test Suite | `PENDING` | — | — | `docs/NFR_AUDIT_REPORT.md`: `NFR-PERF-001` (<= 2.0s), `NFR-PERF-002` (<= 500ms), 5.0s SMS failover, Groth16 <= 8.0s, BNS/BNSS/BSA audit, 100% completion. |
 
 ---
@@ -79,6 +79,7 @@
 | `2026-11-03T04:53:37+05:30` | **Phase D1** | Lead Principal Systems Architect | Multi-tier cloud deployment blueprint (docs/DEPLOYMENT_BLUEPRINT.md), docker-compose.yml, Fastify Dockerfile, Vercel COOP/COEP WASM headers, EAS mobile build profiles, GitHub Actions CI workflow, .env.example templates across all 9 packages & root. 18/18 turbo tests passed | `COMPLETED` (`5f7509a`) |
 | `2026-11-05T01:22:10+05:30` | **Phase D2** | Senior DevOps & Web3 Infrastructure Architect | Deployed all 8 contracts to Polygon Amoy Testnet (Chain ID 80002) via Alchemy RPC, whitelisted core contracts on SheRakshaPaymaster, executed live gasless UserOperation smoke test (0 POL deducted from keyless user smart account). Exported amoy.json manifest. | `COMPLETED` |
 | `2026-11-05T01:22:30+05:30` | **Phase D3** | Senior DevOps & Web3 Infrastructure Architect | Initialized Supabase PostgreSQL 17 + PostGIS 3.3.7, applied 3NF schema 001_init_core_schema.sql, verified GiST spatial indexes (guardians.geom & sos_incidents.geom), configured railway.toml / fly.toml, verified Fastify sticky WebSocket (/ws/sos) & statutory BNS classification. | `COMPLETED` |
+| `2026-11-05T15:25:00+05:30` | **Phase D4** | Senior DevOps & Mobile Infrastructure Architect | Upgraded Next.js 14 In-Browser WASM ZK Bystander Portal UI/UX (Zero-PII intake, SnarkJS WebWorker client, Polygon Purple proving state, JetBrains Mono nullifier/geohash pills). Finalized mobile edge hardware triggers (4-tap power / volume fallback, 2.5g/3.8g IMU dynamic config, NFR-SEC-002 RAM zero-fill). Configured Android permissions in AndroidManifest.xml and app.json, bundled quantized TFLite distress model and Circom .zkey assets, and packaged testable release preview APK artifact at packages/mobile/dist/She-Raksha-preview.apk. All 54 mobile tests & 18 web tests passed. | `COMPLETED` |
 
 ---
 *Maintained autonomously by the She-Raksha Antigravity Engineering Agent.*

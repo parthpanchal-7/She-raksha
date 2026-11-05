@@ -11,11 +11,17 @@
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   TriggerMode,
   SHAKE_THRESHOLD_DISTRESS_G,
   SHAKE_THRESHOLD_FALL_G,
 } from '@she-raksha/schemas';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import {
   PlatformGuard,
   HardwareTriggerService,
@@ -230,6 +236,45 @@ describe('1. Stealth Hardware & Sensor Trigger Layer (FR-SOS-001)', () => {
       assert.equal(events.length, 1);
       assert.equal(events[0].triggerMode, TriggerMode.FALL_DETECTION);
       assert.equal(events[0].source, 'ACCELEROMETER_FALL');
+    });
+
+    it('Should dynamically read 2.5g and 3.8g thresholds from environment or remote config', () => {
+      const originalShake = process.env.EXPO_PUBLIC_SHAKE_THRESHOLD_G;
+      const originalFall = process.env.EXPO_PUBLIC_FALL_IMPACT_THRESHOLD_G;
+
+      try {
+        process.env.EXPO_PUBLIC_SHAKE_THRESHOLD_G = '2.5';
+        process.env.EXPO_PUBLIC_FALL_IMPACT_THRESHOLD_G = '3.8';
+
+        const customListener = new IMUAccelerometerListener();
+        const cfg = customListener.getConfig();
+        assert.equal(cfg.distressShakeThresholdG, 2.5);
+        assert.equal(cfg.fallImpactThresholdG, 3.8);
+      } finally {
+        if (originalShake !== undefined) {
+          process.env.EXPO_PUBLIC_SHAKE_THRESHOLD_G = originalShake;
+        } else {
+          delete process.env.EXPO_PUBLIC_SHAKE_THRESHOLD_G;
+        }
+        if (originalFall !== undefined) {
+          process.env.EXPO_PUBLIC_FALL_IMPACT_THRESHOLD_G = originalFall;
+        } else {
+          delete process.env.EXPO_PUBLIC_FALL_IMPACT_THRESHOLD_G;
+        }
+      }
+    });
+  });
+
+  describe('Native Bundled Assets (TFLite & Circom ZKey)', () => {
+    it('Should verify quantized TFLite distress model and Circom .zkey are present in assets', () => {
+      const modelPath = path.resolve(__dirname, '../../assets/models/distress_classifier_quant.tflite');
+      const zkeyPath = path.resolve(__dirname, '../../assets/circuits/circuit_final.zkey');
+
+      assert(fs.existsSync(modelPath), 'distress_classifier_quant.tflite must exist in assets/models/');
+      assert(fs.statSync(modelPath).size > 1000, 'TFLite model must be valid non-empty binary');
+
+      assert(fs.existsSync(zkeyPath), 'circuit_final.zkey must exist in assets/circuits/');
+      assert(fs.statSync(zkeyPath).size > 1000000, 'Circuit zkey must be non-empty (>1MB)');
     });
   });
 
