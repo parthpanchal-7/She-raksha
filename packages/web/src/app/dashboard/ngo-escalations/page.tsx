@@ -12,3 +12,4 @@ import { NGOEscalationsView } from '../../../components/NGOEscalationsView.js';
 export default function NGOEscalationsPage() {
   return <NGOEscalationsView />;
 }
+

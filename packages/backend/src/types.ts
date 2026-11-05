@@ -2,7 +2,7 @@
  * @she-raksha/backend — Domain Models & Type Definitions
  */
 
-import { TriggerMode, SOSStatus, DispatchRail, DispatchStatus } from '@she-raksha/schemas';
+import { TriggerMode, SOSStatus, DispatchRail, DispatchStatus, EFIRStatus } from '@she-raksha/schemas';
 
 export interface LocationCoords {
   latitude: number;
@@ -206,5 +206,59 @@ export interface CountdownEvaluationResult {
   dossier?: SPEscalationDossier;
   ngoAlert?: NGOEarlyWarningAlert;
 }
+
+// ===========================================================================
+// Real-Time Institutional Command Hub Sync Types
+// ===========================================================================
+
+export interface InstitutionalSubscriptionMessage {
+  type: 'SUBSCRIBE_INSTITUTIONAL';
+  walletAddress: string;
+  role: 'LAW_ENFORCEMENT' | 'SHO' | 'SP' | 'NGO_CASEWORKER';
+  accessGrantToken?: string;
+  accessGrantSignature?: string;
+}
+
+export interface SubscriptionConfirmedMessage {
+  type: 'SUBSCRIPTION_CONFIRMED';
+  channel: 'INSTITUTIONAL_COMMAND_HUB';
+  role: string;
+  walletAddress: string;
+  accessGrantValid: boolean;
+  serverTimestamp: string;
+}
+
+export interface ActiveIncidentDispatchEvent {
+  type: 'ACTIVE_INCIDENT_DISPATCH';
+  incidentId: string;
+  latitude: number;
+  longitude: number;
+  coarseLocation: string;
+  h3Index: string;
+  triggerMode: TriggerMode;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  timestamp: string;
+  evidenceMerkleRoot: string;
+  guardiansNearby: number;
+  bnsSection?: string;
+}
+
+export interface NewEFIREscrowEvent {
+  type: 'NEW_EFIR_ESCROW';
+  efirId: string;
+  displayId: string;
+  incidentId: string;
+  bnsSections: string[];
+  coarseLocation: string;
+  createdAt: string;
+  signDeadlineAt: string;
+  hoursRemaining: number;
+  minutesRemaining: number;
+  secondsRemaining: number;
+  escrowContractId: string;
+  encryptedTranscriptCID: string;
+  status: EFIRStatus | 'RECORDED' | 'ACKNOWLEDGED' | 'ESCALATED' | 'TRANSCRIBED';
+}
+
 
 

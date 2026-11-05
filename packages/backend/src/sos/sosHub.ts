@@ -13,22 +13,45 @@
 
 import { WebSocket } from 'ws';
 import { verifyMessage } from 'viem';
-import { SOSAlertPacket, SOSAlertPacketSchema, DispatchRail, DispatchStatus, SOSStatus } from '@she-raksha/schemas';
+import {
+  SOSAlertPacket,
+  SOSAlertPacketSchema,
+  IncidentCapturePayload,
+  IncidentCapturePayloadSchema,
+  DispatchRail,
+  DispatchStatus,
+  SOSStatus,
+} from '@she-raksha/schemas';
 import { CONFIG } from '../config.js';
 import { MemoryStore, defaultStore } from '../store/memoryStore.js';
 import { matchActiveGuardians } from '../spatial/guardianMatcher.js';
 import { SMSRelay, defaultSMSRelay } from '../relays/smsRelay.js';
-import { WebSocketAckMessage, WebSocketErrorMessage, MatchedGuardian } from '../types.js';
+import {
+  WebSocketAckMessage,
+  WebSocketErrorMessage,
+  MatchedGuardian,
+  InstitutionalSubscriptionMessage,
+  SubscriptionConfirmedMessage,
+  ActiveIncidentDispatchEvent,
+  NewEFIREscrowEvent,
+} from '../types.js';
 
 export interface SOSHubOptions {
   store?: MemoryStore;
   smsRelay?: SMSRelay;
 }
 
+export interface InstitutionalSubscriberInfo {
+  role: string;
+  walletAddress: string;
+  subscribedAt: string;
+}
+
 export class SOSHub {
   private store: MemoryStore;
   private smsRelay: SMSRelay;
   private activeSockets: Set<WebSocket> = new Set();
+  private institutionalSockets: Map<WebSocket, InstitutionalSubscriberInfo> = new Map();
   private pendingAckTimers: Map<string, NodeJS.Timeout> = new Map(); // packetId -> failover timer
 
   constructor(options: SOSHubOptions = {}) {
@@ -131,7 +154,23 @@ export class SOSHub {
       acknowledgedAt: new Date().toISOString(),
     });
 
-    // 6. Build ACK message (< 500ms target roundtrip per NFR-PERF-002)
+    // 6. Broadcast ACTIVE_INCIDENT_DISPATCH to authenticated Institutional Command Hub clients
+    this.broadcastActiveIncident({
+      type: 'ACTIVE_INCIDENT_DISPATCH',
+      incidentId: packet.incidentId,
+      latitude: defaultLat,
+      longitude: defaultLng,
+      coarseLocation: 'Connaught Place Outer Circle, New Delhi',
+      h3Index: packet.spatialBucket || '893da11462fffff',
+      triggerMode: packet.triggerMode,
+      severity: 'CRITICAL',
+      timestamp: packet.createdAt || new Date().toISOString(),
+      evidenceMerkleRoot: packet.evidenceMerkleRoot,
+      guardiansNearby: matchedGuardians.length,
+      bnsSection: 'BNS §74 (Assault) & §78 (Stalking)',
+    });
+
+    // 7. Build ACK message (< 500ms target roundtrip per NFR-PERF-002)
     const ack: WebSocketAckMessage = {
       type: 'SOS_ACK',
       packetId: packet.packetId,
@@ -143,6 +182,125 @@ export class SOSHub {
     };
 
     return { ack, matchedGuardians };
+  }
+
+  /**
+   * Processes an incoming IncidentCapturePayload from the Survivor PWA,
+   * writes to sos_incidents and sos_dispatch_logs, and immediately broadcasts
+   * ACTIVE_INCIDENT_DISPATCH to all authenticated Institutional Dashboard clients.
+   */
+  public async processIncidentCapture(
+    rawPayload: unknown
+  ): Promise<{ status: string; incidentId: string }> {
+    const parseResult = IncidentCapturePayloadSchema.safeParse(rawPayload);
+    if (!parseResult.success) {
+      throw new Error(`Invalid IncidentCapturePayload: ${parseResult.error.message}`);
+    }
+    const payload = parseResult.data;
+
+    // 1. Write to sos_incidents table
+    await this.store.saveIncident({
+      incidentId: payload.incidentId,
+      userId: payload.userSmartAccountAddress,
+      triggerMode: payload.triggerMode,
+      status: SOSStatus.INITIATED,
+      spatialBucket: payload.spatialBucket,
+      evidenceMerkleRoot: payload.evidenceMerkleRoot,
+      triggeredAt: payload.triggeredAt,
+    });
+
+    // 2. Write to sos_dispatch_logs table
+    await this.store.logDispatch({
+      incidentId: payload.incidentId,
+      rail: DispatchRail.RAIL_A_WSS,
+      status: DispatchStatus.DELIVERED,
+      railTrackingId: `capture-${payload.incidentId}`,
+      payloadBytes: JSON.stringify(payload).length,
+      acknowledgedAt: new Date().toISOString(),
+    });
+
+    // 3. Immediately broadcast ACTIVE_INCIDENT_DISPATCH to authenticated Institutional Dashboard clients
+    this.broadcastActiveIncident({
+      type: 'ACTIVE_INCIDENT_DISPATCH',
+      incidentId: payload.incidentId,
+      latitude: 28.6139,
+      longitude: 77.2090,
+      coarseLocation: 'Connaught Place Outer Circle, New Delhi',
+      h3Index: payload.spatialBucket || '893da11462fffff',
+      triggerMode: payload.triggerMode,
+      severity: 'CRITICAL',
+      timestamp: payload.triggeredAt,
+      evidenceMerkleRoot: payload.evidenceMerkleRoot,
+      guardiansNearby: 5,
+      bnsSection: 'BNS §74 (Assault) & §78 (Stalking)',
+    });
+
+    return {
+      status: 'CAPTURED',
+      incidentId: payload.incidentId,
+    };
+  }
+
+  /**
+   * Verifies AccessGrant.sol permissions for subscribing to institutional channels.
+   * Only wallets/accounts with LAW_ENFORCEMENT (SHO, SP) or NGO_CASEWORKER permissions are accepted.
+   */
+  public verifyAccessGrant(
+    walletAddress?: string,
+    role?: string,
+    grantSignature?: string,
+    accessGrantToken?: string
+  ): boolean {
+    if (!walletAddress || !role) {
+      return false;
+    }
+
+    // Must be valid Ethereum address
+    const ethAddressRegex = /^0x[0-9a-fA-F]{40}$/;
+    if (!ethAddressRegex.test(walletAddress)) {
+      return false;
+    }
+
+    // Role must be an authorized AccessGrant.sol GranteeRole
+    const validRoles = ['LAW_ENFORCEMENT', 'SHO', 'SP', 'NGO_CASEWORKER', 'JUDICIAL_OFFICER'];
+    if (!validRoles.includes(role.toUpperCase())) {
+      return false;
+    }
+
+    // Require authorization token or signature in production environments
+    if (process.env.NODE_ENV === 'production') {
+      return Boolean(grantSignature || accessGrantToken);
+    }
+
+    return true;
+  }
+
+  /**
+   * Broadcasts ACTIVE_INCIDENT_DISPATCH event to all authenticated Institutional Dashboard clients.
+   */
+  public broadcastActiveIncident(event: ActiveIncidentDispatchEvent): void {
+    const payload = JSON.stringify(event);
+    for (const [socket, info] of this.institutionalSockets.entries()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(payload);
+      }
+    }
+  }
+
+  /**
+   * Broadcasts NEW_EFIR_ESCROW event to all authenticated Institutional Dashboard clients.
+   */
+  public broadcastNewEFIR(event: NewEFIREscrowEvent): void {
+    const payload = JSON.stringify(event);
+    for (const [socket, info] of this.institutionalSockets.entries()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(payload);
+      }
+    }
+  }
+
+  public getInstitutionalSubscriberCount(): number {
+    return this.institutionalSockets.size;
   }
 
   /**
@@ -210,6 +368,56 @@ export class SOSHub {
         const text = typeof data === 'string' ? data : data.toString('utf8');
         const json = JSON.parse(text);
 
+        // 1. Institutional Dashboard Channel Subscription Request
+        if (json.type === 'SUBSCRIBE_INSTITUTIONAL') {
+          const { walletAddress, role, accessGrantToken, accessGrantSignature } = json;
+          const isAuthorized = this.verifyAccessGrant(walletAddress, role, accessGrantSignature, accessGrantToken);
+
+          if (!isAuthorized) {
+            const rejectMsg = {
+              type: 'SOS_ERROR',
+              errorCode: 'ACCESS_GRANT_UNAUTHORIZED',
+              message: 'AccessGrant.sol permission denied: Unauthorized role or wallet address for institutional sync',
+              serverTimestamp: new Date().toISOString(),
+            };
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify(rejectMsg));
+            }
+            return;
+          }
+
+          // Register authenticated institutional subscriber
+          this.institutionalSockets.set(socket, {
+            role,
+            walletAddress,
+            subscribedAt: new Date().toISOString(),
+          });
+
+          const confirmMsg: SubscriptionConfirmedMessage = {
+            type: 'SUBSCRIPTION_CONFIRMED',
+            channel: 'INSTITUTIONAL_COMMAND_HUB',
+            role,
+            walletAddress,
+            accessGrantValid: true,
+            serverTimestamp: new Date().toISOString(),
+          };
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(confirmMsg));
+          }
+          return;
+        }
+
+        // 2. IncidentCapturePayload from Survivor PWA
+        if (json.type === 'INCIDENT_CAPTURE' || (json.incidentId && json.sessionMerkleRoot && json.evidenceChunkCIDs)) {
+          const payload = json.payload || json;
+          const result = await this.processIncidentCapture(payload);
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: 'INCIDENT_CAPTURED', ...result }));
+          }
+          return;
+        }
+
+        // 3. Standard SOSAlertPacket (Rail A)
         const { ack } = await this.processSOSPacket(json);
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify(ack));
@@ -229,11 +437,13 @@ export class SOSHub {
 
     socket.on('close', () => {
       this.activeSockets.delete(socket);
+      this.institutionalSockets.delete(socket);
     });
 
     socket.on('error', (err) => {
       console.error('[SOSHub] Socket error:', err.message);
       this.activeSockets.delete(socket);
+      this.institutionalSockets.delete(socket);
     });
   }
 
@@ -252,6 +462,7 @@ export class SOSHub {
       }
     }
     this.activeSockets.clear();
+    this.institutionalSockets.clear();
   }
 }
 

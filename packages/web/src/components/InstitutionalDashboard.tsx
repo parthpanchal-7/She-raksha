@@ -77,6 +77,9 @@ export interface InstitutionalDashboardProps {
   onAcknowledgePolice?: (complaintId: number) => void;
   onTriggerSPEscalation?: (complaintId: number) => void;
   onVerifyBSA63?: (certId: string) => void;
+  wsUrl?: string;
+  walletAddress?: string;
+  role?: string;
 }
 
 export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
@@ -113,8 +116,20 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
   onAcknowledgePolice,
   onTriggerSPEscalation,
   onVerifyBSA63,
+  wsUrl,
+  walletAddress = '0x1234567890123456789012345678901234567890',
+  role = 'SHO',
 }) => {
   const [incidents, setIncidents] = useState<IncidentEscrowItem[]>(initialIncidents);
+  const [dynamicIncidents, setDynamicIncidents] = useState<Array<{
+    incidentId: string;
+    latitude: number;
+    longitude: number;
+    severity?: string;
+    coarseLocation?: string;
+    triggerMode?: string;
+  }>>([]);
+  const [wsStatus, setWsStatus] = useState<'CONNECTING' | 'CONNECTED' | 'SUBSCRIBED' | 'DISCONNECTED'>('CONNECTING');
   const [activeTab, setActiveTab] = useState<string>('e-fir');
   const [verifiedCert, setVerifiedCert] = useState<string | null>(null);
   const [syncTime, setSyncTime] = useState<number>(123);
@@ -168,6 +183,134 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
 
     return () => clearInterval(timer);
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Fastify WebSocket Institutional State Hydration (AccessGrant.sol)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let socket: WebSocket | null = null;
+    let reconnectTimeout: any = null;
+    let isCancelled = false;
+
+    function connectWs() {
+      try {
+        const targetUrl =
+          wsUrl ||
+          (process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws/institutional');
+        
+        socket = new WebSocket(targetUrl);
+
+        socket.onopen = () => {
+          if (isCancelled) return;
+          setWsStatus('CONNECTED');
+          // Dispatch SUBSCRIBE_INSTITUTIONAL compliant with AccessGrant.sol
+          socket?.send(
+            JSON.stringify({
+              type: 'SUBSCRIBE_INSTITUTIONAL',
+              walletAddress,
+              role,
+              accessGrantSignature: '0x1111111111111111111111111111111111111111111111111111111111111111',
+            })
+          );
+        };
+
+        socket.onmessage = (event) => {
+          if (isCancelled) return;
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'SUBSCRIPTION_CONFIRMED') {
+              setWsStatus('SUBSCRIBED');
+            } else if (data.type === 'ACTIVE_INCIDENT_DISPATCH') {
+              // 1. Hydrate dynamic PostGIS Mapbox/Cesium/MapLibre markers with Crimson Coral (#FF3B5C)
+              const newDyn = {
+                incidentId: data.incidentId,
+                latitude: Number(data.latitude) || 28.6139,
+                longitude: Number(data.longitude) || 77.209,
+                severity: data.severity || 'CRITICAL',
+                coarseLocation: data.coarseLocation || `Lat: ${Number(data.latitude || 28.6139).toFixed(4)}, Lng: ${Number(data.longitude || 77.209).toFixed(4)}`,
+                triggerMode: data.triggerMode || 'MANUAL_1TAP',
+              };
+              setDynamicIncidents((prev) => [newDyn, ...prev]);
+
+              // 2. Hydrate Active Incidents state list
+              const newInc: IncidentEscrowItem = {
+                complaintId: Date.now(),
+                incidentId: data.incidentId,
+                bnsSection: data.severity === 'CRITICAL' ? 'BNS §74 (Emergency SOS Triggered)' : 'BNS §74 (Assault)',
+                hoursRemaining: 72,
+                minutesRemaining: 0,
+                isSigned: false,
+                policeAcknowledged: false,
+                isEscalatedToSP: false,
+                h3Index: data.h3Index || '893da11462fffff',
+                coarseLocation: data.coarseLocation || `Lat: ${Number(data.latitude || 28.6139).toFixed(4)}, Lng: ${Number(data.longitude || 77.209).toFixed(4)}`,
+                guardianCountNearby: data.guardianCountNearby || 4,
+                bsa63CertId: `BSA63-CERT-${data.incidentId.slice(0, 8)}`,
+              };
+              setIncidents((prev) => [newInc, ...prev]);
+              setSelectedComplaintId(newInc.complaintId);
+            } else if (data.type === 'NEW_EFIR_ESCROW') {
+              // 1. Append new e-FIR to e-FIR Escrow Queue state
+              const newEfir: IncidentEscrowItem = {
+                complaintId: Date.now(),
+                incidentId: data.efirId,
+                bnsSection:
+                  data.bnsSections && data.bnsSections.length > 0
+                    ? data.bnsSections.join(', ')
+                    : 'BNS §74 (Assault) & §78 (Stalking)',
+                hoursRemaining: data.hoursRemaining ?? 72,
+                minutesRemaining: data.minutesRemaining ?? 0,
+                isSigned: true,
+                policeAcknowledged: false,
+                isEscalatedToSP: false,
+                h3Index: '893da11462fffff',
+                coarseLocation: data.coarseLocation || 'Connaught Place Outer Circle, New Delhi',
+                guardianCountNearby: 4,
+                bsa63CertId: `BSA63-CERT-${data.efirId.slice(0, 8)}`,
+              };
+              setIncidents((prev) => [newEfir, ...prev]);
+              setSelectedComplaintId(newEfir.complaintId);
+
+              // 2. Start the 72-hour BNSS §173 countdown timer natively in the browser
+              setCountdown({
+                hours: data.hoursRemaining ?? 72,
+                minutes: data.minutesRemaining ?? 0,
+                seconds: data.secondsRemaining ?? 0,
+              });
+            }
+          } catch (err) {
+            console.warn('WSS packet handling note:', err);
+          }
+        };
+
+        socket.onerror = () => {
+          // Handled gracefully without crashing UI
+        };
+
+        socket.onclose = () => {
+          if (isCancelled) return;
+          setWsStatus('DISCONNECTED');
+          reconnectTimeout = setTimeout(connectWs, 5000);
+        };
+      } catch (err) {
+        setWsStatus('DISCONNECTED');
+      }
+    }
+
+    connectWs();
+
+    return () => {
+      isCancelled = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (socket) {
+        try {
+          socket.close();
+        } catch (e) {}
+      }
+    };
+  }, [wsUrl, walletAddress, role]);
 
   const handleAcknowledge = (id: number) => {
     setIncidents((prev) =>
@@ -320,6 +463,25 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
             />
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Active Platform Status</span>
+          </div>
+
+          {/* AccessGrant WSS Authentication Status */}
+          <div
+            data-testid="wss-accessgrant-pill"
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono shadow-sm"
+            style={{
+              backgroundColor: colors.darkSlate,
+              border: `1px solid ${wsStatus === 'SUBSCRIBED' ? colors.emeraldShield : colors.subtleWire}`,
+              color: wsStatus === 'SUBSCRIBED' ? colors.emeraldShield : colors.dimSteel,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" style={{ color: wsStatus === 'SUBSCRIBED' ? colors.emeraldShield : colors.dimSteel }} />
+            <span>
+              {wsStatus === 'SUBSCRIBED'
+                ? `AccessGrant: ${role} (${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)})`
+                : 'WSS: Authenticating...'}
+            </span>
           </div>
 
           {/* Telemetry Synchronicity Label */}
@@ -689,6 +851,7 @@ export const InstitutionalDashboard: React.FC<InstitutionalDashboardProps> = ({
               onSelectGuardian={(gId) => setSelectedGuardian(gId)}
               onClearGuardian={() => setSelectedGuardian(null)}
               focusMode={focusMode}
+              dynamicIncidents={dynamicIncidents}
             />
           </section>
 

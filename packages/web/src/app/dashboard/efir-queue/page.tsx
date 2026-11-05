@@ -12,3 +12,4 @@ import { EFIRQueueView } from '../../../components/EFIRQueueView.js';
 export default function EFIRQueuePage() {
   return <EFIRQueueView />;
 }
+

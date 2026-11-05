@@ -269,6 +269,29 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
     try {
       const { efir, classification } = bnsClassifier.generateEFIRRecord(req.body as any);
       await store.saveEFIRRecord(efir);
+
+      // Immediately broadcast NEW_EFIR_ESCROW to all authenticated Institutional Dashboard clients
+      const bnsSections = classification?.applicableSections?.map((s) => `${s.bnsNumber} (${s.sectionTitle})`) || [
+        'BNS §74 (Assault)',
+        'BNS §78 (Stalking)',
+      ];
+      sosHub.broadcastNewEFIR({
+        type: 'NEW_EFIR_ESCROW',
+        efirId: efir.efirId,
+        displayId: efir.efirId.slice(0, 5),
+        incidentId: efir.incidentId,
+        bnsSections,
+        coarseLocation: 'Connaught Place Outer Circle, New Delhi',
+        createdAt: efir.createdAt,
+        signDeadlineAt: efir.signDeadlineAt,
+        hoursRemaining: 72,
+        minutesRemaining: 0,
+        secondsRemaining: 0,
+        escrowContractId: efir.escrowContractId || '0x' + '1'.repeat(64),
+        encryptedTranscriptCID: efir.encryptedTranscriptCID,
+        status: efir.status,
+      });
+
       return reply.code(201).send({
         efir,
         classification,
@@ -279,6 +302,24 @@ export async function buildServer(dependencies: ServerDependencies = {}): Promis
         message: err.message,
       });
     }
+  });
+
+  // 12b. Survivor Incident Capture Endpoint (FR-EV-001)
+  app.post('/api/v1/survivor/incident/capture', async (req, reply) => {
+    try {
+      const result = await sosHub.processIncidentCapture(req.body);
+      return reply.code(201).send(result);
+    } catch (err: any) {
+      return reply.code(400).send({
+        error: 'INCIDENT_CAPTURE_ERROR',
+        message: err.message,
+      });
+    }
+  });
+
+  // 12c. WebSocket Institutional Command Hub Route
+  app.get('/ws/institutional', { websocket: true }, (socket, req) => {
+    sosHub.handleConnection(socket);
   });
 
   // 13. BNSS §173 Countdown Evaluation API (48h NGO early warning & 72h SP escalation)

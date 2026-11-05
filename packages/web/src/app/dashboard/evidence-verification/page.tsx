@@ -12,3 +12,4 @@ import { EvidenceVerificationView } from '../../../components/EvidenceVerificati
 export default function EvidenceVerificationPage() {
   return <EvidenceVerificationView />;
 }
+

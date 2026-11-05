@@ -52,6 +52,15 @@ import { IncidentEscrowItem } from './InstitutionalDashboard.js';
 
 export type IndianGisProvider = 'bhuvan' | 'bharatmaps' | 'mappls' | 'satellite' | 'vector';
 
+export interface DynamicIncidentMarker {
+  incidentId: string;
+  latitude: number;
+  longitude: number;
+  severity?: string;
+  coarseLocation?: string;
+  triggerMode?: string;
+}
+
 export interface Geospatial3DGisGlobeProps {
   activeCase: IncidentEscrowItem;
   isFullMapView: boolean;
@@ -60,6 +69,7 @@ export interface Geospatial3DGisGlobeProps {
   selectedGuardian?: string | null;
   onClearGuardian?: () => void;
   focusMode?: 'radar' | 'national';
+  dynamicIncidents?: DynamicIncidentMarker[];
 }
 
 // Regional Command Hubs across India
@@ -140,9 +150,11 @@ export const Geospatial3DGisGlobe: React.FC<Geospatial3DGisGlobeProps> = ({
   selectedGuardian,
   onClearGuardian,
   focusMode,
+  dynamicIncidents,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const dynamicMarkersRef = useRef<any[]>([]);
 
   // Indian GIS Provider State (default to 'bhuvan' with fallback vector support)
   const [activeProvider, setActiveProvider] = useState<IndianGisProvider>('bhuvan');
@@ -167,6 +179,62 @@ export const Geospatial3DGisGlobe: React.FC<Geospatial3DGisGlobeProps> = ({
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
   const [mapViewFocus, setMapViewFocus] = useState<'india' | 'delhi'>('india');
   const [webGlAvailable, setWebGlAvailable] = useState<boolean>(true);
+
+  // Dynamic Incident markers sync (Real-Time WSS Hub)
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded) return;
+    const map = mapRef.current;
+
+    // Clean up existing markers
+    dynamicMarkersRef.current.forEach((m) => {
+      try {
+        m.remove();
+      } catch (e) {}
+    });
+    dynamicMarkersRef.current = [];
+
+    if (!dynamicIncidents || dynamicIncidents.length === 0) return;
+
+    (async () => {
+      try {
+        const maplibre: any = await import('maplibre-gl');
+        const MarkerConstructor = maplibre.default?.Marker || maplibre.Marker;
+        if (!MarkerConstructor) return;
+
+        dynamicIncidents.forEach((inc) => {
+          const el = document.createElement('div');
+          el.className = 'cursor-pointer flex items-center justify-center';
+          el.innerHTML = `
+            <div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+              <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background-color: #FF3B5C; opacity: 0.4; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+              <div style="position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 2px dashed #FF3B5C;"></div>
+              <div style="width: 12px; height: 12px; border-radius: 50%; background-color: #FF3B5C; box-shadow: 0 0 14px #FF3B5C;"></div>
+              <div style="position: absolute; top: 46px; left: 50%; transform: translateX(-50%); background: rgba(18, 24, 36, 0.95); border: 1px solid #FF3B5C; color: #FF3B5C; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 4px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+                DISPATCH: ${inc.incidentId.slice(0, 8)}
+              </div>
+            </div>
+          `;
+          el.onclick = () => {
+            map.flyTo({
+              center: [inc.longitude, inc.latitude],
+              zoom: 14.5,
+              pitch: 55,
+              bearing: -20,
+              duration: 2000,
+            });
+          };
+
+          const marker = new MarkerConstructor({ element: el })
+            .setLngLat([inc.longitude, inc.latitude])
+            .addTo(map);
+
+          dynamicMarkersRef.current.push(marker);
+        });
+      } catch (err) {
+        // Fallback or test environment
+      }
+    })();
+  }, [dynamicIncidents, mapLoaded]);
 
   // Respond to parent focusMode changes (e.g. when user clicks 'Geospatial Radar' tab)
   useEffect(() => {
@@ -530,9 +598,9 @@ export const Geospatial3DGisGlobe: React.FC<Geospatial3DGisGlobeProps> = ({
 
       {/* =================================================================== */}
       {/* HIGH-FIDELITY SOVEREIGN INDIA VECTOR FALLBACK / DUAL-VIEW */}
-      {/* Renders when activeProvider === 'vector' or if WebGL is unavailable */}
+      {/* Renders when activeProvider === 'vector', in SSR, or if WebGL is unavailable */}
       {/* =================================================================== */}
-      {(activeProvider === 'vector' || !webGlAvailable) && (
+      {(activeProvider === 'vector' || !webGlAvailable || typeof window === 'undefined') && (
         <div className="absolute inset-0 z-0 flex items-center justify-center p-6 bg-[#070A0E]">
           <svg viewBox="0 0 600 680" className="w-full h-full max-h-[85vh] drop-shadow-2xl">
             {/* Ambient Hexagonal Grid Pattern */}
@@ -630,6 +698,22 @@ export const Geospatial3DGisGlobe: React.FC<Geospatial3DGisGlobeProps> = ({
                   <circle cx={gx} cy={gy} r="4" fill="#00D084" />
                   <text x={gx + 6} y={gy + 3} fill="#00D084" fontSize="9" fontFamily="JetBrains Mono" fontWeight="bold">
                     {g.id} ({g.dist})
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Dynamic Real-Time WSS Dispatched Incidents */}
+            {dynamicIncidents && dynamicIncidents.map((inc, idx) => {
+              const svgX = Math.round(((inc.longitude - 68) / (98 - 68)) * 400 + 75);
+              const svgY = Math.round(((36 - inc.latitude) / (36 - 8)) * 480 + 70);
+              return (
+                <g key={inc.incidentId || idx} className="cursor-pointer" data-testid={`dynamic-incident-${inc.incidentId}`}>
+                  <circle cx={svgX} cy={svgY} r="20" fill="#FF3B5C" fillOpacity="0.25" className="animate-pulse" />
+                  <circle cx={svgX} cy={svgY} r="10" fill="none" stroke="#FF3B5C" strokeWidth="1.5" strokeDasharray="3 3" />
+                  <circle cx={svgX} cy={svgY} r="5" fill="#FF3B5C" />
+                  <text x={svgX + 12} y={svgY + 4} fill="#FF3B5C" fontSize="9" fontFamily="JetBrains Mono" fontWeight="bold">
+                    {`DISPATCH: ${inc.incidentId.slice(0, 8)}`}
                   </text>
                 </g>
               );

@@ -28,15 +28,27 @@ export interface SurvivorCommandCenterProps {
   onLockToDecoy: () => void;
   onTriggerSOS?: () => void;
   multiRailStatus?: MultiRailStatus;
+  apiBaseUrl?: string;
+  onIncidentDispatched?: (incidentId: string) => void;
+  onEFIRGenerated?: (efirId: string) => void;
 }
 
 export const SurvivorCommandCenter: React.FC<SurvivorCommandCenterProps> = ({
   onLockToDecoy,
   onTriggerSOS,
   multiRailStatus,
+  apiBaseUrl,
+  onIncidentDispatched,
+  onEFIRGenerated,
 }) => {
   const [activeTab, setActiveTab] = useState<'DISPATCH' | 'VAULT' | 'EFIR'>('DISPATCH');
   const [isSOSActive, setIsSOSActive] = useState(false);
+  const [dispatchStatus, setDispatchStatus] = useState<string | null>(null);
+  const [efirNarrative, setEfirNarrative] = useState<string>(
+    'A man followed me and assaulted me near Connaught Place Outer Circle, New Delhi.'
+  );
+  const [efirSubmitted, setEfirSubmitted] = useState<boolean>(false);
+  const [generatedEfirId, setGeneratedEfirId] = useState<string | null>(null);
 
   // Mock initial evidence chunks
   const [chunks] = useState<EvidenceChunk[]>([
@@ -58,9 +70,80 @@ export const SurvivorCommandCenter: React.FC<SurvivorCommandCenterProps> = ({
     },
   ]);
 
-  const handleSOS = () => {
+  const handleSOS = async () => {
     setIsSOSActive(true);
+    setDispatchStatus('DISPATCHING');
     onTriggerSOS?.();
+
+    try {
+      const baseUrl =
+        apiBaseUrl ||
+        (typeof window !== 'undefined'
+          ? (window as any).__BACKEND_URL__ || 'http://localhost:8080'
+          : 'http://localhost:8080');
+
+      const response = await fetch(`${baseUrl}/api/v1/survivor/incident/capture`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incidentId: 'inc-dl-' + Math.random().toString(36).substring(2, 8),
+          timestamp: new Date().toISOString(),
+          triggerMode: 'MANUAL_1TAP',
+          coarseLocation: {
+            h3Index: '893da11462fffff',
+            latitude: 28.6139,
+            longitude: 77.209,
+            radiusMeters: 800,
+          },
+          sessionKeyId: '22334455-6677-8899-aabb-ccddeeff0011',
+          evidenceChunkCIDs: ['bafybeieza2fffw4pd5ubhksbtoaudbnkcw4rhqdqlgc25iba7gtkla4jwq'],
+          evidenceMerkleRoot: 'a'.repeat(64),
+          schemaVersion: '1.0.0',
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDispatchStatus('CONFIRMED');
+        onIncidentDispatched?.(data.incidentId);
+      } else {
+        setDispatchStatus('CONFIRMED_LOCAL');
+      }
+    } catch (e) {
+      setDispatchStatus('CONFIRMED_LOCAL');
+    }
+  };
+
+  const handleGenerateEFIR = async () => {
+    setEfirSubmitted(true);
+    try {
+      const baseUrl =
+        apiBaseUrl ||
+        (typeof window !== 'undefined'
+          ? (window as any).__BACKEND_URL__ || 'http://localhost:8080'
+          : 'http://localhost:8080');
+
+      const incId = 'inc-dl-' + Math.random().toString(36).substring(2, 8);
+      const response = await fetch(`${baseUrl}/api/v1/legal/efir/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          incidentId: incId,
+          narrativeText: efirNarrative,
+          langCodeHint: 'en',
+          evidenceMerkleRoot: 'b'.repeat(64),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const id = data.efir?.efirId || 'efir-generated';
+        setGeneratedEfirId(id);
+        onEFIRGenerated?.(id);
+      }
+    } catch (e) {
+      console.warn('e-FIR submission note:', e);
+    }
   };
 
   return (
@@ -271,20 +354,46 @@ export const SurvivorCommandCenter: React.FC<SurvivorCommandCenterProps> = ({
             <PillBadge label="48H NGO ALERT ARMED" isVerified={true} accentColor={colors.electricAmber} />
           </div>
 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            <label style={{ fontSize: '11px', color: colors.mutedSilver, fontWeight: 600 }}>
+              Incident Narrative (Zero-Cleartext PII • 22 Eighth Schedule Indian Languages):
+            </label>
+            <textarea
+              data-testid="efir-narrative-input"
+              value={efirNarrative}
+              onChange={(e) => setEfirNarrative(e.target.value)}
+              rows={3}
+              style={{
+                backgroundColor: colors.darkSlate,
+                border: `1px solid ${colors.subtleWire}`,
+                borderRadius: '8px',
+                padding: '8px',
+                color: colors.pureFrost,
+                fontSize: '12px',
+                resize: 'vertical',
+                fontFamily: 'Inter, sans-serif',
+              }}
+            />
+          </div>
+
           <button
             data-testid="btn-sign-efir"
+            onClick={handleGenerateEFIR}
             style={{
               marginTop: '12px',
               padding: '12px',
               borderRadius: '8px',
-              backgroundColor: colors.polygonPurple,
+              backgroundColor: efirSubmitted ? colors.emeraldShield : colors.polygonPurple,
               color: colors.pureFrost,
               border: 'none',
               fontWeight: 600,
               cursor: 'pointer',
+              transition: 'background-color 0.2s ease',
             }}
           >
-            Sign e-FIR via Aadhaar Privacy-Preserving e-Sign (FR-ID-004)
+            {efirSubmitted
+              ? 'Sign e-FIR via Aadhaar Privacy-Preserving e-Sign (FR-ID-004) [DISPATCHED TO ESCROW]'
+              : 'Sign e-FIR via Aadhaar Privacy-Preserving e-Sign (FR-ID-004)'}
           </button>
         </Card>
       )}
